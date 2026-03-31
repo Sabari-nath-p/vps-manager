@@ -629,6 +629,48 @@ body {
   border-color: rgba(239,68,68,0.5);
   color: var(--danger);
 }
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 6, 10, 0.8);
+  backdrop-filter: blur(3px);
+  z-index: 3000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.wizard-overlay.open { display: flex; }
+.wizard-overlay-card {
+  width: min(900px, 95vw);
+  max-height: 80vh;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wizard-overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+.wizard-overlay-log {
+  background: #070710;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a8a8b8;
+  overflow: auto;
+  white-space: pre-wrap;
+  flex: 1;
+}
 
 /* ── Card ── */
 .card {
@@ -1122,6 +1164,17 @@ body {
       <div id="wizard-output" class="config-box" style="display:none"></div>
     </div>
 
+    <div id="wizard-overlay" class="wizard-overlay">
+      <div class="wizard-overlay-card">
+        <div class="wizard-overlay-header">
+          <div class="spinner"></div>
+          <div id="wizard-overlay-title">Running...</div>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="closeWizardOverlay()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="wizard-overlay-log" class="wizard-overlay-log">Starting...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1550,6 +1603,26 @@ function showWizardOutput(text) {
   box.scrollTop = box.scrollHeight;
 }
 
+function openWizardOverlay(title, text) {
+  const overlay = document.getElementById('wizard-overlay');
+  const titleEl = document.getElementById('wizard-overlay-title');
+  const logEl = document.getElementById('wizard-overlay-log');
+  titleEl.textContent = title || 'Running...';
+  logEl.textContent = text || 'Starting...';
+  overlay.classList.add('open');
+}
+
+function updateWizardOverlay(text) {
+  const logEl = document.getElementById('wizard-overlay-log');
+  logEl.textContent = text || logEl.textContent;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function closeWizardOverlay() {
+  const overlay = document.getElementById('wizard-overlay');
+  overlay.classList.remove('open');
+}
+
 function setWizardLoading(isLoading, message, isError) {
   const status = document.getElementById('wizard-status');
   const text = document.getElementById('wizard-status-text');
@@ -1577,6 +1650,7 @@ async function detectProject() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Detecting project...');
   showWizardOutput('Detecting project...');
+  openWizardOverlay('Detecting project', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/project/detect`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({path})
@@ -1585,6 +1659,7 @@ async function detectProject() {
   if (data.error) {
     setWizardLoading(false);
     showWizardOutput(data.error);
+    updateWizardOverlay(data.error);
     setWizardLoading(true, 'Detect failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
     toast('Detect failed', 'error');
@@ -1615,6 +1690,7 @@ async function detectProject() {
     branchSelect.appendChild(opt);
   }
   showWizardOutput('Detect complete.');
+  updateWizardOverlay('Detect complete.');
   setWizardLoading(false);
 }
 
@@ -1625,12 +1701,15 @@ async function switchWizardBranch() {
   if (!branch) { toast('Select a branch', 'error'); return; }
   setWizardLoading(true, `Switching to ${branch}...`);
   showWizardOutput(`Switching to ${branch}...`);
+  openWizardOverlay('Switching branch', `Branch: ${branch}\nPath: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({command: `git checkout ${shellQuote(branch)}`, cwd: path})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Branch switched', 'success');
     detectProject();
@@ -1647,12 +1726,15 @@ async function pullWizardBranch() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Running git pull...');
   showWizardOutput('Running git pull...');
+  openWizardOverlay('Git pull', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({command: 'git pull', cwd: path})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Git pull completed', 'success');
   } else {
@@ -1668,12 +1750,15 @@ async function installWizardDeps() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Installing dependencies...');
   showWizardOutput('Installing dependencies...');
+  openWizardOverlay('Installing dependencies', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({command: 'npm install', cwd: path})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Dependencies installed', 'success');
   } else {
@@ -1689,12 +1774,15 @@ async function buildWizardProject() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Building project...');
   showWizardOutput('Building project...');
+  openWizardOverlay('Building project', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({command: 'npm run build', cwd: path})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Build completed', 'success');
   } else {
@@ -1710,6 +1798,7 @@ async function loadWizardPm2() {
   if (!select) return;
   select.innerHTML = '';
   setWizardLoading(true, 'Loading PM2 list...');
+  openWizardOverlay('Loading PM2 list', 'Fetching process list...');
   const res = await fetch(`/api/servers/${currentServer.id}/pm2`);
   const data = await res.json();
   if (data.error || !data.processes) {
@@ -1717,6 +1806,7 @@ async function loadWizardPm2() {
     opt.value = '';
     opt.textContent = 'PM2 not available';
     select.appendChild(opt);
+    updateWizardOverlay('PM2 not available.');
     setWizardLoading(false);
     return;
   }
@@ -1725,6 +1815,7 @@ async function loadWizardPm2() {
     opt.value = '';
     opt.textContent = 'No PM2 processes';
     select.appendChild(opt);
+    updateWizardOverlay('No PM2 processes found.');
     setWizardLoading(false);
     return;
   }
@@ -1734,6 +1825,7 @@ async function loadWizardPm2() {
     opt.textContent = `${p.name} (id: ${p.pm_id})`;
     select.appendChild(opt);
   });
+  updateWizardOverlay('PM2 list loaded.');
   setWizardLoading(false);
 }
 
@@ -1743,8 +1835,10 @@ async function restartWizardPm2() {
   const id = manual || selected;
   if (!id) { toast('Select or enter PM2 id', 'error'); return; }
   setWizardLoading(true, 'Restarting PM2...');
+  openWizardOverlay('Restarting PM2', `ID: ${id}`);
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/restart/${id}`, {method:'POST'});
   const data = await res.json();
+  updateWizardOverlay((data.output || data.error || '(no output)').trim());
   if (data.success) {
     toast('PM2 restarted', 'success');
   } else {
@@ -1763,12 +1857,15 @@ async function deployWizardPm2() {
   if (!name || !path) { toast('App name and path required', 'error'); return; }
   setWizardLoading(true, 'Deploying with PM2...');
   showWizardOutput('Deploying with PM2...');
+  openWizardOverlay('Deploying with PM2', `App: ${name}\nPath: ${path}\nType: ${type}\nPort: ${port}`);
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/deploy`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({name, type, path, port})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.success) {
     toast('PM2 deploy completed', 'success');
   } else {
@@ -1786,12 +1883,15 @@ async function createWizardNginx() {
   if (!domain) { toast('Domain required', 'error'); return; }
   setWizardLoading(true, 'Creating Nginx config...');
   showWizardOutput('Creating Nginx config...');
+  openWizardOverlay('Creating Nginx config', `Domain: ${domain}\nPort: ${port}`);
   const res = await fetch(`/api/servers/${currentServer.id}/nginx/create`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({domain, port})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.success) {
     toast('Nginx config created', 'success');
     loadNginxSites();
@@ -1809,12 +1909,15 @@ async function runWizardCertbot() {
   if (!domain || !email) { toast('Domain and email required', 'error'); return; }
   setWizardLoading(true, 'Running Certbot...');
   showWizardOutput('Running Certbot...');
+  openWizardOverlay('Running Certbot', `Domain: ${domain}\nEmail: ${email}`);
   const res = await fetch(`/api/servers/${currentServer.id}/certbot`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({domain, email})
   });
   const data = await res.json();
-  showWizardOutput((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  showWizardOutput(output);
+  updateWizardOverlay(output);
   if (data.success) {
     toast('SSL issued', 'success');
   } else {
