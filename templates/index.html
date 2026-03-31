@@ -609,6 +609,26 @@ body {
 }
 .btn-danger:hover { background: rgba(239,68,68,0.2); }
 .btn-sm { padding: 5px 10px; font-size: 11px; }
+.wizard-action[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.wizard-status {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  font-size: 12px;
+}
+.wizard-status.error {
+  border-color: rgba(239,68,68,0.5);
+  color: var(--danger);
+}
 
 /* ── Card ── */
 .card {
@@ -1022,8 +1042,8 @@ body {
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary" onclick="setWizardPathFromCurrent()"><i class="fas fa-crosshairs"></i> Use Current Folder</button>
-          <button class="btn btn-primary" onclick="detectProject()"><i class="fas fa-search"></i> Detect</button>
+          <button class="btn btn-secondary wizard-action" onclick="setWizardPathFromCurrent()"><i class="fas fa-crosshairs"></i> Use Current Folder</button>
+          <button class="btn btn-primary wizard-action" onclick="detectProject()"><i class="fas fa-search"></i> Detect</button>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
           <span class="badge" id="wizard-type-badge">TYPE: —</span>
@@ -1041,16 +1061,16 @@ body {
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary" onclick="switchWizardBranch()"><i class="fas fa-random"></i> Switch Branch</button>
-          <button class="btn btn-secondary" onclick="pullWizardBranch()"><i class="fas fa-code-branch"></i> Git Pull</button>
+          <button class="btn btn-secondary wizard-action" onclick="switchWizardBranch()"><i class="fas fa-random"></i> Switch Branch</button>
+          <button class="btn btn-secondary wizard-action" onclick="pullWizardBranch()"><i class="fas fa-code-branch"></i> Git Pull</button>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title"><i class="fas fa-hammer"></i> Build</div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="buildWizardProject()"><i class="fas fa-play"></i> Build Project</button>
-          <button class="btn btn-secondary" onclick="installWizardDeps()"><i class="fas fa-box"></i> Install Deps</button>
+          <button class="btn btn-primary wizard-action" onclick="buildWizardProject()"><i class="fas fa-play"></i> Build Project</button>
+          <button class="btn btn-secondary wizard-action" onclick="installWizardDeps()"><i class="fas fa-box"></i> Install Deps</button>
         </div>
       </div>
 
@@ -1071,9 +1091,9 @@ body {
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary" onclick="loadWizardPm2()"><i class="fas fa-sync"></i> Refresh PM2</button>
-          <button class="btn btn-secondary" onclick="restartWizardPm2()"><i class="fas fa-redo"></i> Restart Selected</button>
-          <button class="btn btn-primary" onclick="deployWizardPm2()"><i class="fas fa-rocket"></i> Deploy with PM2</button>
+          <button class="btn btn-secondary wizard-action" onclick="loadWizardPm2()"><i class="fas fa-sync"></i> Refresh PM2</button>
+          <button class="btn btn-secondary wizard-action" onclick="restartWizardPm2()"><i class="fas fa-redo"></i> Restart Selected</button>
+          <button class="btn btn-primary wizard-action" onclick="deployWizardPm2()"><i class="fas fa-rocket"></i> Deploy with PM2</button>
         </div>
       </div>
 
@@ -1090,11 +1110,15 @@ body {
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary" onclick="createWizardNginx()"><i class="fas fa-check"></i> Create Nginx</button>
-          <button class="btn btn-primary" onclick="runWizardCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL</button>
+          <button class="btn btn-secondary wizard-action" onclick="createWizardNginx()"><i class="fas fa-check"></i> Create Nginx</button>
+          <button class="btn btn-primary wizard-action" onclick="runWizardCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL</button>
         </div>
       </div>
 
+      <div id="wizard-status" class="wizard-status">
+        <div class="spinner"></div>
+        <div id="wizard-status-text">Working...</div>
+      </div>
       <div id="wizard-output" class="config-box" style="display:none"></div>
     </div>
 
@@ -1526,6 +1550,21 @@ function showWizardOutput(text) {
   box.scrollTop = box.scrollHeight;
 }
 
+function setWizardLoading(isLoading, message, isError) {
+  const status = document.getElementById('wizard-status');
+  const text = document.getElementById('wizard-status-text');
+  const actions = document.querySelectorAll('.wizard-action');
+  if (isLoading) {
+    status.style.display = 'flex';
+    status.classList.toggle('error', !!isError);
+    text.textContent = message || 'Working...';
+  } else {
+    status.style.display = 'none';
+    status.classList.remove('error');
+  }
+  actions.forEach(btn => { btn.disabled = !!isLoading; });
+}
+
 function setWizardBadge(id, label, isOk) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1536,6 +1575,7 @@ function setWizardBadge(id, label, isOk) {
 async function detectProject() {
   const path = document.getElementById('wizard-path').value.trim();
   if (!path) { toast('Project path required', 'error'); return; }
+  setWizardLoading(true, 'Detecting project...');
   showWizardOutput('Detecting project...');
   const res = await fetch(`/api/servers/${currentServer.id}/project/detect`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1543,7 +1583,10 @@ async function detectProject() {
   });
   const data = await res.json();
   if (data.error) {
+    setWizardLoading(false);
     showWizardOutput(data.error);
+    setWizardLoading(true, 'Detect failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
     toast('Detect failed', 'error');
     return;
   }
@@ -1572,6 +1615,7 @@ async function detectProject() {
     branchSelect.appendChild(opt);
   }
   showWizardOutput('Detect complete.');
+  setWizardLoading(false);
 }
 
 async function switchWizardBranch() {
@@ -1579,6 +1623,7 @@ async function switchWizardBranch() {
   const branch = document.getElementById('wizard-branch-select').value;
   if (!path) { toast('Project path required', 'error'); return; }
   if (!branch) { toast('Select a branch', 'error'); return; }
+  setWizardLoading(true, `Switching to ${branch}...`);
   showWizardOutput(`Switching to ${branch}...`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1590,13 +1635,17 @@ async function switchWizardBranch() {
     toast('Branch switched', 'success');
     detectProject();
   } else {
+    setWizardLoading(true, 'Branch switch failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
     toast('Branch switch failed', 'error');
   }
+  setWizardLoading(false);
 }
 
 async function pullWizardBranch() {
   const path = document.getElementById('wizard-path').value.trim();
   if (!path) { toast('Project path required', 'error'); return; }
+  setWizardLoading(true, 'Running git pull...');
   showWizardOutput('Running git pull...');
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1604,13 +1653,20 @@ async function pullWizardBranch() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.exit_code === 0) toast('Git pull completed', 'success');
-  else toast('Git pull failed', 'error');
+  if (data.exit_code === 0) {
+    toast('Git pull completed', 'success');
+  } else {
+    setWizardLoading(true, 'Git pull failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('Git pull failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 async function installWizardDeps() {
   const path = document.getElementById('wizard-path').value.trim();
   if (!path) { toast('Project path required', 'error'); return; }
+  setWizardLoading(true, 'Installing dependencies...');
   showWizardOutput('Installing dependencies...');
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1618,13 +1674,20 @@ async function installWizardDeps() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.exit_code === 0) toast('Dependencies installed', 'success');
-  else toast('Install failed', 'error');
+  if (data.exit_code === 0) {
+    toast('Dependencies installed', 'success');
+  } else {
+    setWizardLoading(true, 'Install failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('Install failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 async function buildWizardProject() {
   const path = document.getElementById('wizard-path').value.trim();
   if (!path) { toast('Project path required', 'error'); return; }
+  setWizardLoading(true, 'Building project...');
   showWizardOutput('Building project...');
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1632,14 +1695,21 @@ async function buildWizardProject() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.exit_code === 0) toast('Build completed', 'success');
-  else toast('Build failed', 'error');
+  if (data.exit_code === 0) {
+    toast('Build completed', 'success');
+  } else {
+    setWizardLoading(true, 'Build failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('Build failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 async function loadWizardPm2() {
   const select = document.getElementById('wizard-pm2-select');
   if (!select) return;
   select.innerHTML = '';
+  setWizardLoading(true, 'Loading PM2 list...');
   const res = await fetch(`/api/servers/${currentServer.id}/pm2`);
   const data = await res.json();
   if (data.error || !data.processes) {
@@ -1647,6 +1717,7 @@ async function loadWizardPm2() {
     opt.value = '';
     opt.textContent = 'PM2 not available';
     select.appendChild(opt);
+    setWizardLoading(false);
     return;
   }
   if (!data.processes.length) {
@@ -1654,6 +1725,7 @@ async function loadWizardPm2() {
     opt.value = '';
     opt.textContent = 'No PM2 processes';
     select.appendChild(opt);
+    setWizardLoading(false);
     return;
   }
   data.processes.forEach(p => {
@@ -1662,6 +1734,7 @@ async function loadWizardPm2() {
     opt.textContent = `${p.name} (id: ${p.pm_id})`;
     select.appendChild(opt);
   });
+  setWizardLoading(false);
 }
 
 async function restartWizardPm2() {
@@ -1669,10 +1742,17 @@ async function restartWizardPm2() {
   const selected = document.getElementById('wizard-pm2-select').value;
   const id = manual || selected;
   if (!id) { toast('Select or enter PM2 id', 'error'); return; }
+  setWizardLoading(true, 'Restarting PM2...');
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/restart/${id}`, {method:'POST'});
   const data = await res.json();
-  if (data.success) toast('PM2 restarted', 'success');
-  else toast('PM2 restart failed', 'error');
+  if (data.success) {
+    toast('PM2 restarted', 'success');
+  } else {
+    setWizardLoading(true, 'PM2 restart failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('PM2 restart failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 async function deployWizardPm2() {
@@ -1681,6 +1761,7 @@ async function deployWizardPm2() {
   const type = document.getElementById('wizard-type-select').value || wizardDetectedType || 'node';
   const port = document.getElementById('wizard-port').value || 3000;
   if (!name || !path) { toast('App name and path required', 'error'); return; }
+  setWizardLoading(true, 'Deploying with PM2...');
   showWizardOutput('Deploying with PM2...');
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/deploy`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1688,15 +1769,22 @@ async function deployWizardPm2() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.success) toast('PM2 deploy completed', 'success');
-  else toast('PM2 deploy failed', 'error');
+  if (data.success) {
+    toast('PM2 deploy completed', 'success');
+  } else {
+    setWizardLoading(true, 'PM2 deploy failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('PM2 deploy failed', 'error');
+  }
   loadWizardPm2();
+  setWizardLoading(false);
 }
 
 async function createWizardNginx() {
   const domain = document.getElementById('wizard-domain').value.trim();
   const port = document.getElementById('wizard-port').value || 3000;
   if (!domain) { toast('Domain required', 'error'); return; }
+  setWizardLoading(true, 'Creating Nginx config...');
   showWizardOutput('Creating Nginx config...');
   const res = await fetch(`/api/servers/${currentServer.id}/nginx/create`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1704,14 +1792,22 @@ async function createWizardNginx() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.success) { toast('Nginx config created', 'success'); loadNginxSites(); }
-  else toast('Nginx create failed', 'error');
+  if (data.success) {
+    toast('Nginx config created', 'success');
+    loadNginxSites();
+  } else {
+    setWizardLoading(true, 'Nginx create failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('Nginx create failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 async function runWizardCertbot() {
   const domain = document.getElementById('wizard-domain').value.trim();
   const email = document.getElementById('wizard-email').value.trim();
   if (!domain || !email) { toast('Domain and email required', 'error'); return; }
+  setWizardLoading(true, 'Running Certbot...');
   showWizardOutput('Running Certbot...');
   const res = await fetch(`/api/servers/${currentServer.id}/certbot`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1719,8 +1815,14 @@ async function runWizardCertbot() {
   });
   const data = await res.json();
   showWizardOutput((data.output || data.error || '(no output)').trim());
-  if (data.success) toast('SSL issued', 'success');
-  else toast('Certbot failed', 'error');
+  if (data.success) {
+    toast('SSL issued', 'success');
+  } else {
+    setWizardLoading(true, 'Certbot failed', true);
+    setTimeout(() => setWizardLoading(false), 1200);
+    toast('Certbot failed', 'error');
+  }
+  setWizardLoading(false);
 }
 
 // ─── Terminal ───────────────────────────────────────────────────────────────
