@@ -4,6 +4,7 @@ import json
 import os
 import stat
 import time
+import posixpath
 from functools import wraps
 from cryptography.fernet import Fernet
 import base64
@@ -173,38 +174,41 @@ def list_files(server_id):
     client, error = get_ssh_client(server_id)
     if error:
         return jsonify({'error': error}), 500
-
-    out, err, code = ssh_exec(client, f"ls -la --time-style=long-iso {json.dumps(path)} 2>&1")
-    client.close()
-
-    if code != 0:
-        return jsonify({'error': err or out}), 400
+    try:
+        sftp = client.open_sftp()
+        entries = sftp.listdir_attr(path)
+    except Exception as e:
+        client.close()
+        return jsonify({'error': str(e)}), 400
 
     files = []
-    lines = out.strip().split('\n')
-    for line in lines[1:]:  # skip total line
-        parts = line.split(None, 8)
-        if len(parts) < 9:
-            continue
-        perms = parts[0]
-        size = parts[4]
-        date = parts[5] + ' ' + parts[6]
-        name = parts[8]
+    for attr in entries:
+        name = attr.filename
         if name in ('.', '..'):
             continue
-        # Handle symlinks
-        if ' -> ' in name:
-            name = name.split(' -> ')[0]
-        ftype = 'dir' if perms.startswith('d') else ('link' if perms.startswith('l') else 'file')
+        mode = attr.st_mode
+        if stat.S_ISDIR(mode):
+            ftype = 'dir'
+        elif stat.S_ISLNK(mode):
+            ftype = 'link'
+        else:
+            ftype = 'file'
+        perms = stat.filemode(mode)
+        size = attr.st_size
+        date = time.strftime('%Y-%m-%d %H:%M', time.localtime(attr.st_mtime))
+        full_path = posixpath.join(path.rstrip('/'), name) if path != '/' else '/' + name
         files.append({
             'name': name,
             'type': ftype,
             'size': size,
             'date': date,
             'perms': perms,
-            'path': path.rstrip('/') + '/' + name
+            'path': full_path
         })
-    
+
+    sftp.close()
+    client.close()
+
     # Sort: dirs first
     files.sort(key=lambda x: (0 if x['type'] == 'dir' else 1, x['name'].lower()))
     return jsonify({'files': files, 'path': path})
