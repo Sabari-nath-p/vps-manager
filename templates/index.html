@@ -312,6 +312,7 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .file-search {
   flex: 1;
@@ -373,6 +374,7 @@ body {
 .file-size { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .file-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .file-actions { display: flex; gap: 6px; }
+.file-actions .fa-btn { white-space: nowrap; }
 .fa-btn {
   background: none;
   border: 1px solid var(--border);
@@ -503,6 +505,26 @@ body {
 .pm2-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ── Nginx ── */
+.nginx-sites {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.nginx-site-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.nginx-site-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-word;
+}
 .config-box {
   background: #070710;
   border: 1px solid var(--border);
@@ -703,6 +725,36 @@ body {
   .form-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 900px) {
+  .files-table table, .files-table thead, .files-table tbody, .files-table th, .files-table tr, .files-table td {
+    display: block;
+    width: 100%;
+  }
+  .files-table thead { display: none; }
+  .files-table tr {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+  }
+  .files-table td {
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+  }
+  .files-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .file-name { justify-content: flex-start; }
+  .file-actions { justify-content: flex-end; flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
@@ -779,9 +831,13 @@ body {
       <div class="breadcrumb" id="breadcrumb">/</div>
       <div class="file-toolbar">
         <input class="file-search" type="text" placeholder="Filter files..." id="file-filter" oninput="filterFiles(this.value)">
+        <button class="btn btn-secondary btn-sm" onclick="loadFiles('/')"><i class="fas fa-home"></i> Root</button>
         <button class="btn btn-secondary btn-sm" onclick="loadFiles(currentPath)"><i class="fas fa-sync"></i></button>
+        <button class="btn btn-secondary btn-sm" onclick="gitPull()"><i class="fas fa-code-branch"></i> Git Pull</button>
+        <button class="btn btn-secondary btn-sm" onclick="gitClone()"><i class="fas fa-download"></i> Git Clone</button>
         <button class="btn btn-primary btn-sm" onclick="newFileDialog()"><i class="fas fa-plus"></i> New File</button>
       </div>
+      <div id="file-ops-output" class="config-box" style="display:none; max-height:180px; overflow-y:auto;"></div>
       <div class="files-table" id="files-table">
         <div class="loading-row"><div class="spinner"></div> Loading files...</div>
       </div>
@@ -1144,19 +1200,24 @@ function renderFilesTable(files) {
     const tr = document.createElement('tr');
     const icon = f.type === 'dir' ? 'fa-folder dir' : f.type === 'link' ? 'fa-link link' : 'fa-file-code file';
     tr.innerHTML = `
-      <td><div class="file-name" onclick="handleFileClick(${JSON.stringify(f)})">
+      <td data-label="Name"><div class="file-name">
         <i class="fas ${icon} file-icon ${f.type}"></i>
         <span>${f.name}</span>
       </div></td>
-      <td><span class="file-perms">${f.perms}</span></td>
-      <td><span class="file-size">${f.size}</span></td>
-      <td><span class="file-date">${f.date}</span></td>
-      <td><div class="file-actions">
+      <td data-label="Permissions"><span class="file-perms">${f.perms}</span></td>
+      <td data-label="Size"><span class="file-size">${f.size}</span></td>
+      <td data-label="Modified"><span class="file-date">${f.date}</span></td>
+      <td data-label="Actions"><div class="file-actions">
         ${f.type !== 'dir' ? `<button class="fa-btn" onclick="openFileEditor(${JSON.stringify(f.path)})"><i class="fas fa-edit"></i></button>` : ''}
         <button class="fa-btn" onclick="copyPath(${JSON.stringify(f.path)})"><i class="fas fa-copy"></i></button>
         <button class="fa-btn danger" onclick="deleteFile(${JSON.stringify(f.path)}, ${JSON.stringify(f.type)})"><i class="fas fa-trash"></i></button>
       </div></td>
     `;
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('.file-actions')) return;
+      if (f.type === 'dir') loadFiles(f.path);
+      else openFileEditor(f.path);
+    });
     tbody.appendChild(tr);
   });
 }
@@ -1236,6 +1297,59 @@ function newFileDialog() {
   document.getElementById('editor-filename').textContent = name;
   document.getElementById('file-editor').value = '';
   openModal('editor-modal');
+}
+
+function showFileOpsOutput(text) {
+  const box = document.getElementById('file-ops-output');
+  box.style.display = '';
+  box.textContent = text;
+  box.scrollTop = box.scrollHeight;
+}
+
+function shellQuote(value) {
+  return "'" + String(value).replace(/'/g, "'\\''") + "'";
+}
+
+async function gitPull() {
+  if (!currentServer) return;
+  showFileOpsOutput(`Running git pull in ${currentPath}...`);
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'git pull', cwd: currentPath})
+  });
+  const data = await res.json();
+  const output = (data.output || data.error || '(no output)').trim();
+  showFileOpsOutput(output);
+  if (data.exit_code === 0) {
+    toast('Git pull completed', 'success');
+    loadFiles(currentPath);
+  } else {
+    toast('Git pull failed', 'error');
+  }
+}
+
+async function gitClone() {
+  if (!currentServer) return;
+  const repoUrl = prompt('Git repo URL (https or git@):');
+  if (!repoUrl) return;
+  const folder = prompt('Folder name (optional):') || '';
+  const cmd = folder.trim()
+    ? `git clone ${shellQuote(repoUrl)} ${shellQuote(folder.trim())}`
+    : `git clone ${shellQuote(repoUrl)}`;
+  showFileOpsOutput(`Running ${cmd} in ${currentPath}...`);
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd, cwd: currentPath})
+  });
+  const data = await res.json();
+  const output = (data.output || data.error || '(no output)').trim();
+  showFileOpsOutput(output);
+  if (data.exit_code === 0) {
+    toast('Git clone completed', 'success');
+    loadFiles(currentPath);
+  } else {
+    toast('Git clone failed', 'error');
+  }
 }
 
 // ─── Terminal ───────────────────────────────────────────────────────────────
@@ -1371,13 +1485,15 @@ async function showPm2Logs(id, name) {
 async function loadNginxSites() {
   const div = document.getElementById('nginx-sites');
   div.innerHTML = `<div class="loading-row"><div class="spinner"></div> Loading...</div>`;
+  div.className = '';
   const res = await fetch(`/api/servers/${currentServer.id}/nginx`);
   const data = await res.json();
   if (data.error) { div.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
   if (!data.sites.length) { div.innerHTML = `<div style="color:var(--muted); padding:12px">No sites configured</div>`; return; }
-  div.innerHTML = data.sites.map(s => `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+  div.className = 'nginx-sites';
+  div.innerHTML = data.sites.map(s => `<div class="nginx-site-item">
     <i class="fas fa-globe" style="color:var(--accent)"></i>
-    <span style="font-family:var(--font-mono); font-size:12px; flex:1">${s}</span>
+    <span class="nginx-site-name">${s}</span>
   </div>`).join('');
 }
 
