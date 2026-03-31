@@ -346,12 +346,12 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 12px;
+  padding: 10px;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .file-card:hover {
   border-color: var(--accent);
@@ -362,7 +362,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 .file-card-name {
@@ -387,6 +387,10 @@ body {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+.file-card-actions .fa-btn {
+  padding: 3px 6px;
+  font-size: 10px;
 }
 .file-name {
   display: flex;
@@ -547,6 +551,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.nginx-site-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 .nginx-site-name {
   font-family: var(--font-mono);
@@ -791,6 +801,7 @@ body {
       <button class="tab-btn" onclick="switchTab('pm2')" id="tab-pm2"><i class="fas fa-layer-group"></i> PM2</button>
       <button class="tab-btn" onclick="switchTab('nginx')" id="tab-nginx"><i class="fas fa-globe"></i> Nginx</button>
       <button class="tab-btn" onclick="switchTab('deploy')" id="tab-deploy"><i class="fas fa-rocket"></i> Deploy</button>
+      <button class="tab-btn" onclick="switchTab('wizard')" id="tab-wizard"><i class="fas fa-magic"></i> Deploy Wizard</button>
     </div>
     <div id="topbar-status"></div>
   </div>
@@ -922,6 +933,7 @@ body {
         <div class="card-title"><i class="fas fa-list"></i> Active Sites</div>
         <div id="nginx-sites" class="loading-row"><div class="spinner"></div> Loading...</div>
       </div>
+      <div id="nginx-reload-output" class="config-box" style="display:none"></div>
       <div id="nginx-config-preview" style="display:none">
         <div class="card-title" style="padding: 0 0 8px"><i class="fas fa-code"></i> Config Preview</div>
         <div id="nginx-config-content" class="config-box"></div>
@@ -983,6 +995,107 @@ body {
         <div class="card-title"><i class="fas fa-terminal"></i> Deploy Output</div>
         <div id="deploy-output" class="config-box" style="height:200px; overflow-y:auto;"></div>
       </div>
+    </div>
+
+    <!-- Deploy Wizard Panel -->
+    <div class="panel" id="panel-wizard">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-folder-open"></i> Project Detection</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Project Path</label>
+            <input class="form-input" id="wizard-path" placeholder="/var/www/my-app">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type</label>
+            <select class="form-select" id="wizard-type-select">
+              <option value="next">Next.js</option>
+              <option value="react">React</option>
+              <option value="nest">NestJS</option>
+              <option value="node">Node.js</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Port</label>
+            <input class="form-input" id="wizard-port" placeholder="3000" type="number">
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="setWizardPathFromCurrent()"><i class="fas fa-crosshairs"></i> Use Current Folder</button>
+          <button class="btn btn-primary" onclick="detectProject()"><i class="fas fa-search"></i> Detect</button>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" id="wizard-type-badge">TYPE: —</span>
+          <span class="badge" id="wizard-git-badge">GIT: —</span>
+          <span class="badge" id="wizard-branch-badge">BRANCH: —</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-code-branch"></i> Git Branch</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Branch</label>
+            <select class="form-select" id="wizard-branch-select"></select>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="switchWizardBranch()"><i class="fas fa-random"></i> Switch Branch</button>
+          <button class="btn btn-secondary" onclick="pullWizardBranch()"><i class="fas fa-code-branch"></i> Git Pull</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-hammer"></i> Build</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="buildWizardProject()"><i class="fas fa-play"></i> Build Project</button>
+          <button class="btn btn-secondary" onclick="installWizardDeps()"><i class="fas fa-box"></i> Install Deps</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-layer-group"></i> PM2</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">App Name</label>
+            <input class="form-input" id="wizard-app-name" placeholder="my-app">
+          </div>
+          <div class="form-group">
+            <label class="form-label">PM2 Process</label>
+            <select class="form-select" id="wizard-pm2-select"></select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">PM2 ID (manual)</label>
+            <input class="form-input" id="wizard-pm2-manual" placeholder="0">
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="loadWizardPm2()"><i class="fas fa-sync"></i> Refresh PM2</button>
+          <button class="btn btn-secondary" onclick="restartWizardPm2()"><i class="fas fa-redo"></i> Restart Selected</button>
+          <button class="btn btn-primary" onclick="deployWizardPm2()"><i class="fas fa-rocket"></i> Deploy with PM2</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-globe"></i> Nginx + SSL</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Domain</label>
+            <input class="form-input" id="wizard-domain" placeholder="example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="wizard-email" placeholder="admin@example.com">
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="createWizardNginx()"><i class="fas fa-check"></i> Create Nginx</button>
+          <button class="btn btn-primary" onclick="runWizardCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL</button>
+        </div>
+      </div>
+
+      <div id="wizard-output" class="config-box" style="display:none"></div>
     </div>
 
   </div>
@@ -1047,6 +1160,7 @@ let termCwd = '/root';
 let cmdHistory = [];
 let historyIdx = -1;
 let editingFilePath = null;
+let wizardDetectedType = 'unknown';
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -1113,6 +1227,7 @@ function switchTab(tab) {
   if (tab === 'terminal') document.getElementById('terminal-input').focus();
   if (tab === 'pm2') loadPm2();
   if (tab === 'nginx') loadNginxSites();
+  if (tab === 'wizard') initWizard();
 }
 
 // ─── Dashboard / Stats ──────────────────────────────────────────────────────
@@ -1202,10 +1317,6 @@ function renderFilesTable(files) {
         <i class="fas fa-arrow-left file-icon dir"></i>
         <div class="file-card-name">..</div>
       </div>
-      <div class="file-card-meta">
-        <div>Type</div><span>Parent folder</span>
-        <div>Path</div><span>${escHtml(currentPath)}</span>
-      </div>
     `;
     backCard.addEventListener('click', () => {
       const parent = currentPath.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '/';
@@ -1218,18 +1329,10 @@ function renderFilesTable(files) {
     card.className = 'file-card';
     const icon = f.type === 'dir' ? 'fa-folder dir' : f.type === 'link' ? 'fa-link link' : 'fa-file-code file';
     const safeName = escHtml(f.name);
-    const safePerms = escHtml(f.perms);
-    const safeSize = escHtml(String(f.size));
-    const safeDate = escHtml(f.date);
     card.innerHTML = `
       <div class="file-card-header">
         <i class="fas ${icon} file-icon ${f.type}"></i>
         <div class="file-card-name" title="${safeName}">${safeName}</div>
-      </div>
-      <div class="file-card-meta">
-        <div>Perms</div><span>${safePerms}</span>
-        <div>Size</div><span>${safeSize}</span>
-        <div>Modified</div><span>${safeDate}</span>
       </div>
       <div class="file-card-actions">
         ${f.type !== 'dir' ? `<button class="fa-btn" onclick="openFileEditor(${JSON.stringify(f.path)})"><i class="fas fa-edit"></i></button>` : ''}
@@ -1292,8 +1395,33 @@ async function saveFile() {
     body: JSON.stringify({path: editingFilePath, content})
   });
   const data = await res.json();
-  if (data.success) { toast('File saved!', 'success'); closeModal('editor-modal'); }
+  if (data.success) {
+    toast('File saved!', 'success');
+    closeModal('editor-modal');
+    if (editingFilePath && editingFilePath.startsWith('/etc/nginx/')) {
+      reloadNginxFromEditor();
+    }
+  }
   else toast('Save failed: ' + data.error, 'error');
+}
+
+async function reloadNginxFromEditor() {
+  const output = document.getElementById('nginx-reload-output');
+  output.style.display = '';
+  output.textContent = 'Reloading Nginx...';
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'sudo nginx -t && sudo systemctl reload nginx', cwd: '/'})
+  });
+  const data = await res.json();
+  const text = (data.output || data.error || '(no output)').trim();
+  output.textContent = text;
+  if (data.exit_code === 0) {
+    toast('Nginx reloaded', 'success');
+    loadNginxSites();
+  } else {
+    toast('Nginx reload failed', 'error');
+  }
 }
 
 function copyPath(path) {
@@ -1374,6 +1502,225 @@ async function gitClone() {
   } else {
     toast('Git clone failed', 'error');
   }
+}
+
+// ─── Deploy Wizard ─────────────────────────────────────────────────────────
+function initWizard() {
+  if (!currentServer) return;
+  const pathInput = document.getElementById('wizard-path');
+  if (pathInput && !pathInput.value) {
+    pathInput.value = currentPath || '/';
+  }
+  loadWizardPm2();
+}
+
+function setWizardPathFromCurrent() {
+  const input = document.getElementById('wizard-path');
+  if (input) input.value = currentPath || '/';
+}
+
+function showWizardOutput(text) {
+  const box = document.getElementById('wizard-output');
+  box.style.display = '';
+  box.textContent = text;
+  box.scrollTop = box.scrollHeight;
+}
+
+function setWizardBadge(id, label, isOk) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = label;
+  el.className = 'badge ' + (isOk ? 'green' : 'red');
+}
+
+async function detectProject() {
+  const path = document.getElementById('wizard-path').value.trim();
+  if (!path) { toast('Project path required', 'error'); return; }
+  showWizardOutput('Detecting project...');
+  const res = await fetch(`/api/servers/${currentServer.id}/project/detect`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({path})
+  });
+  const data = await res.json();
+  if (data.error) {
+    showWizardOutput(data.error);
+    toast('Detect failed', 'error');
+    return;
+  }
+  wizardDetectedType = data.type || 'unknown';
+  const typeSelect = document.getElementById('wizard-type-select');
+  if (typeSelect) typeSelect.value = wizardDetectedType;
+
+  setWizardBadge('wizard-type-badge', `TYPE: ${wizardDetectedType}`, wizardDetectedType !== 'unknown');
+  setWizardBadge('wizard-git-badge', `GIT: ${data.has_git ? 'yes' : 'no'}`, data.has_git);
+  setWizardBadge('wizard-branch-badge', `BRANCH: ${data.branch || '—'}`, !!data.branch);
+
+  const branchSelect = document.getElementById('wizard-branch-select');
+  branchSelect.innerHTML = '';
+  if (data.branches && data.branches.length) {
+    data.branches.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b;
+      opt.textContent = b;
+      if (b === data.branch) opt.selected = true;
+      branchSelect.appendChild(opt);
+    });
+  } else {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No branches';
+    branchSelect.appendChild(opt);
+  }
+  showWizardOutput('Detect complete.');
+}
+
+async function switchWizardBranch() {
+  const path = document.getElementById('wizard-path').value.trim();
+  const branch = document.getElementById('wizard-branch-select').value;
+  if (!path) { toast('Project path required', 'error'); return; }
+  if (!branch) { toast('Select a branch', 'error'); return; }
+  showWizardOutput(`Switching to ${branch}...`);
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: `git checkout ${shellQuote(branch)}`, cwd: path})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.exit_code === 0) {
+    toast('Branch switched', 'success');
+    detectProject();
+  } else {
+    toast('Branch switch failed', 'error');
+  }
+}
+
+async function pullWizardBranch() {
+  const path = document.getElementById('wizard-path').value.trim();
+  if (!path) { toast('Project path required', 'error'); return; }
+  showWizardOutput('Running git pull...');
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'git pull', cwd: path})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.exit_code === 0) toast('Git pull completed', 'success');
+  else toast('Git pull failed', 'error');
+}
+
+async function installWizardDeps() {
+  const path = document.getElementById('wizard-path').value.trim();
+  if (!path) { toast('Project path required', 'error'); return; }
+  showWizardOutput('Installing dependencies...');
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'npm install', cwd: path})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.exit_code === 0) toast('Dependencies installed', 'success');
+  else toast('Install failed', 'error');
+}
+
+async function buildWizardProject() {
+  const path = document.getElementById('wizard-path').value.trim();
+  if (!path) { toast('Project path required', 'error'); return; }
+  showWizardOutput('Building project...');
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'npm run build', cwd: path})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.exit_code === 0) toast('Build completed', 'success');
+  else toast('Build failed', 'error');
+}
+
+async function loadWizardPm2() {
+  const select = document.getElementById('wizard-pm2-select');
+  if (!select) return;
+  select.innerHTML = '';
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2`);
+  const data = await res.json();
+  if (data.error || !data.processes) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'PM2 not available';
+    select.appendChild(opt);
+    return;
+  }
+  if (!data.processes.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No PM2 processes';
+    select.appendChild(opt);
+    return;
+  }
+  data.processes.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = String(p.pm_id);
+    opt.textContent = `${p.name} (id: ${p.pm_id})`;
+    select.appendChild(opt);
+  });
+}
+
+async function restartWizardPm2() {
+  const manual = document.getElementById('wizard-pm2-manual').value.trim();
+  const selected = document.getElementById('wizard-pm2-select').value;
+  const id = manual || selected;
+  if (!id) { toast('Select or enter PM2 id', 'error'); return; }
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2/restart/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (data.success) toast('PM2 restarted', 'success');
+  else toast('PM2 restart failed', 'error');
+}
+
+async function deployWizardPm2() {
+  const name = document.getElementById('wizard-app-name').value.trim();
+  const path = document.getElementById('wizard-path').value.trim();
+  const type = document.getElementById('wizard-type-select').value || wizardDetectedType || 'node';
+  const port = document.getElementById('wizard-port').value || 3000;
+  if (!name || !path) { toast('App name and path required', 'error'); return; }
+  showWizardOutput('Deploying with PM2...');
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2/deploy`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, type, path, port})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.success) toast('PM2 deploy completed', 'success');
+  else toast('PM2 deploy failed', 'error');
+  loadWizardPm2();
+}
+
+async function createWizardNginx() {
+  const domain = document.getElementById('wizard-domain').value.trim();
+  const port = document.getElementById('wizard-port').value || 3000;
+  if (!domain) { toast('Domain required', 'error'); return; }
+  showWizardOutput('Creating Nginx config...');
+  const res = await fetch(`/api/servers/${currentServer.id}/nginx/create`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain, port})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.success) { toast('Nginx config created', 'success'); loadNginxSites(); }
+  else toast('Nginx create failed', 'error');
+}
+
+async function runWizardCertbot() {
+  const domain = document.getElementById('wizard-domain').value.trim();
+  const email = document.getElementById('wizard-email').value.trim();
+  if (!domain || !email) { toast('Domain and email required', 'error'); return; }
+  showWizardOutput('Running Certbot...');
+  const res = await fetch(`/api/servers/${currentServer.id}/certbot`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain, email})
+  });
+  const data = await res.json();
+  showWizardOutput((data.output || data.error || '(no output)').trim());
+  if (data.success) toast('SSL issued', 'success');
+  else toast('Certbot failed', 'error');
 }
 
 // ─── Terminal ───────────────────────────────────────────────────────────────
@@ -1515,10 +1862,16 @@ async function loadNginxSites() {
   if (data.error) { div.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
   if (!data.sites.length) { div.innerHTML = `<div style="color:var(--muted); padding:12px">No sites configured</div>`; return; }
   div.className = 'nginx-sites';
-  div.innerHTML = data.sites.map(s => `<div class="nginx-site-item">
+  div.innerHTML = data.sites.map(s => `<div class="nginx-site-item" onclick="openNginxConfig(${JSON.stringify(data.base_dir || '')}, ${JSON.stringify(s)})">
     <i class="fas fa-globe" style="color:var(--accent)"></i>
     <span class="nginx-site-name">${s}</span>
   </div>`).join('');
+}
+
+function openNginxConfig(baseDir, name) {
+  if (!baseDir || !name) return;
+  const path = baseDir.replace(/\/+$/, '') + '/' + name;
+  openFileEditor(path);
 }
 
 async function createNginx() {

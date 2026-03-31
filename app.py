@@ -330,10 +330,53 @@ def nginx_sites(server_id):
     client, error = get_ssh_client(server_id)
     if error:
         return jsonify({'error': error}), 500
-    out, _, _ = ssh_exec(client, "ls /etc/nginx/sites-available/ 2>/dev/null || ls /etc/nginx/conf.d/ 2>/dev/null")
+    cmd = "if [ -d /etc/nginx/sites-available ]; then echo /etc/nginx/sites-available; ls /etc/nginx/sites-available; elif [ -d /etc/nginx/conf.d ]; then echo /etc/nginx/conf.d; ls /etc/nginx/conf.d; fi"
+    out, _, _ = ssh_exec(client, cmd)
     client.close()
-    sites = [s.strip() for s in out.strip().split('\n') if s.strip()]
-    return jsonify({'sites': sites})
+    lines = [s.strip() for s in out.strip().split('\n') if s.strip()]
+    base_dir = lines[0] if lines else ''
+    sites = lines[1:] if len(lines) > 1 else []
+    return jsonify({'sites': sites, 'base_dir': base_dir})
+
+@app.route('/api/servers/<server_id>/project/detect', methods=['POST'])
+def detect_project(server_id):
+    data = request.json or {}
+    path = data.get('path', '/')
+    client, error = get_ssh_client(server_id)
+    if error:
+        return jsonify({'error': error}), 500
+
+    cmd = (
+        f"cd {json.dumps(path)} && "
+        "if [ -f package.json ]; then "
+        "  if grep -q '\"next\"' package.json; then echo TYPE=next; "
+        "  elif grep -q '\"@nestjs' package.json; then echo TYPE=nest; "
+        "  elif grep -q '\"react-scripts\"' package.json; then echo TYPE=react; "
+        "  else echo TYPE=node; fi; "
+        "else echo TYPE=unknown; fi; "
+        "if [ -d .git ]; then echo GIT=1; else echo GIT=0; fi; "
+        "if [ -d .git ]; then git rev-parse --abbrev-ref HEAD 2>/dev/null | awk '{print \"BRANCH=\"$0}'; fi; "
+        "if [ -d .git ]; then git branch --format=\"%(refname:short)\" 2>/dev/null | sed 's/^/BRANCH_LIST=/'; fi"
+    )
+
+    out, err, code = ssh_exec(client, cmd)
+    client.close()
+
+    if code != 0:
+        return jsonify({'error': err or out or 'Detect failed'}), 400
+
+    result = {'type': 'unknown', 'has_git': False, 'branch': '', 'branches': []}
+    for line in out.strip().split('\n'):
+        if line.startswith('TYPE='):
+            result['type'] = line.split('=', 1)[1].strip()
+        elif line.startswith('GIT='):
+            result['has_git'] = line.split('=', 1)[1].strip() == '1'
+        elif line.startswith('BRANCH='):
+            result['branch'] = line.split('=', 1)[1].strip()
+        elif line.startswith('BRANCH_LIST='):
+            result['branches'].append(line.split('=', 1)[1].strip())
+
+    return jsonify(result)
 
 @app.route('/api/servers/<server_id>/nginx/create', methods=['POST'])
 def nginx_create(server_id):
