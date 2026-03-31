@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — VPS Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --surface2: #16161f;
+  --border: #1e1e2e;
+  --border2: #2a2a3e;
+  --text: #e8e8f0;
+  --muted: #6b6b85;
+  --accent: #00ff88;
+  --accent2: #7c3aed;
+  --accent3: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --glow: 0 0 20px rgba(0,255,136,0.15);
+  --glow2: 0 0 20px rgba(124,58,237,0.15);
+  --radius: 10px;
+  --font-mono: 'Space Mono', monospace;
+  --font: 'Syne', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  z-index: 100;
+}
+
+.sidebar-header {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+  text-shadow: var(--glow);
+}
+.logo span { color: var(--text); }
+.logo-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 2px;
+}
+
+.server-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.server-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  padding: 8px 20px 4px;
+  text-transform: uppercase;
+}
+
+.server-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 2px 8px;
+  transition: all 0.15s;
+  position: relative;
+}
+.server-item:hover { background: var(--surface2); }
+.server-item.active {
+  background: rgba(0,255,136,0.07);
+  border: 1px solid rgba(0,255,136,0.15);
+}
+.server-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.server-item.active .server-dot,
+.server-item.online .server-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.server-item.offline .server-dot { background: var(--danger); }
+.server-info { flex: 1; min-width: 0; }
+.server-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.server-ip { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.server-del {
+  opacity: 0; cursor: pointer; color: var(--muted);
+  transition: opacity 0.15s; font-size: 12px;
+  padding: 4px;
+}
+.server-item:hover .server-del { opacity: 1; }
+.server-del:hover { color: var(--danger); }
+
+.add-server-btn {
+  margin: 12px;
+  padding: 10px;
+  background: transparent;
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  width: calc(100% - 24px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.add-server-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,255,136,0.04); }
+
+/* ── Main Area ── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Topbar ── */
+#topbar {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.topbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+.topbar-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface2);
+  padding: 4px;
+  border-radius: 10px;
+}
+.tab-btn {
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tab-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+
+/* ── Content ── */
+#content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel {
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+.panel.active { display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Welcome Screen ── */
+#welcome-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--muted);
+}
+.welcome-icon { font-size: 64px; opacity: 0.3; }
+.welcome-title { font-size: 24px; font-weight: 700; color: var(--text); opacity: 0.5; }
+.welcome-sub { font-size: 14px; }
+
+/* ── Stats Grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 8px 0 4px;
+  color: var(--accent);
+  line-height: 1;
+}
+.stat-sub { font-size: 11px; color: var(--muted); }
+.stat-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.stat-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+
+/* ── File Manager ── */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.breadcrumb-item {
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.breadcrumb-item:hover, .breadcrumb-item.current { color: var(--accent); }
+.breadcrumb-sep { color: var(--border2); }
+
+.file-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.file-search {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.file-search:focus { border-color: var(--accent); }
+.file-search::placeholder { color: var(--muted); }
+
+.files-table {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex: 1;
+}
+.files-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.files-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  text-transform: uppercase;
+}
+.files-table td {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(30,30,46,0.5);
+  transition: background 0.1s;
+}
+.files-table tr:hover td { background: rgba(255,255,255,0.02); }
+.files-table tr:last-child td { border-bottom: none; }
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.file-name:hover span { color: var(--accent); }
+.file-icon { font-size: 14px; width: 18px; text-align: center; }
+.file-icon.dir { color: var(--accent3); }
+.file-icon.file { color: var(--info); }
+.file-icon.link { color: var(--accent2); }
+.file-perms { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.file-size { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.file-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.file-actions { display: flex; gap: 6px; }
+.fa-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.fa-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fa-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Terminal ── */
+#terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+.terminal-dot.red { background: #ff5f57; }
+.terminal-dot.yellow { background: #febc2e; }
+.terminal-dot.green { background: var(--accent); }
+.terminal-title { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-left: 8px; flex: 1; }
+.terminal-cwd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent2);
+  background: rgba(124,58,237,0.1);
+  border: 1px solid rgba(124,58,237,0.2);
+  padding: 3px 10px;
+  border-radius: 5px;
+}
+
+#terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  background: #070710;
+}
+.term-line { margin-bottom: 2px; }
+.term-prompt { color: var(--accent); }
+.term-cmd { color: var(--text); }
+.term-out { color: #a8a8b8; white-space: pre-wrap; word-break: break-all; }
+.term-err { color: #ff6b6b; white-space: pre-wrap; }
+.term-sys { color: var(--muted); font-style: italic; }
+
+.terminal-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.term-prompt-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  white-space: nowrap;
+  padding-right: 8px;
+}
+#terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  caret-color: var(--accent);
+}
+
+/* ── PM2 Manager ── */
+.pm2-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.pm2-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.pm2-card.online::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--success);
+}
+.pm2-card.stopped::before { background: var(--muted); }
+.pm2-card.errored::before { background: var(--danger); }
+.pm2-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.pm2-name { font-weight: 700; font-size: 14px; flex: 1; }
+.pm2-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+.pm2-status.online { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+.pm2-status.stopped { background: rgba(107,107,133,0.1); color: var(--muted); border: 1px solid rgba(107,107,133,0.2); }
+.pm2-status.errored { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+.pm2-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.pm2-meta-item { font-family: var(--font-mono); font-size: 11px; }
+.pm2-meta-label { color: var(--muted); }
+.pm2-meta-value { color: var(--text); }
+.pm2-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Nginx ── */
+.config-box {
+  background: #070710;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a8a8b8;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Buttons ── */
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+.btn-primary:hover { background: #00e87a; box-shadow: var(--glow); }
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); }
+.btn-danger {
+  background: rgba(239,68,68,0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.2);
+}
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ── Card ── */
+.card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title i { color: var(--accent); }
+
+/* ── Forms ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+.form-input, .form-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-select { cursor: pointer; }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 28px;
+  width: 460px;
+  max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-title i { color: var(--accent); }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── File Editor Modal ── */
+#editor-modal .modal { width: 860px; max-width: 95vw; }
+#file-editor {
+  width: 100%;
+  height: 400px;
+  background: #070710;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: #a8f0c0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px;
+  resize: vertical;
+  outline: none;
+}
+#file-editor:focus { border-color: var(--accent); }
+
+/* ── Spinner / Loading ── */
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 20px;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Toast ── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideIn 0.2s ease;
+  min-width: 240px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--info); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── Status badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+.badge.green { background: rgba(0,255,136,0.1); color: var(--accent); border: 1px solid rgba(0,255,136,0.2); }
+.badge.red { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  #sidebar { width: 200px; min-width: 200px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">NEX<span>US</span></div>
+    <div class="logo-sub">VPS CONTROL PANEL</div>
+  </div>
+  <div class="server-list" id="server-list">
+    <div class="server-section-label">Servers</div>
+    <!-- populated by JS -->
+  </div>
+  <button class="add-server-btn" onclick="openAddServer()">
+    <i class="fas fa-plus"></i> Add Server
+  </button>
+</aside>
+
+<!-- Main -->
+<div id="main">
+  <div id="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Select a Server</div>
+      <div class="topbar-sub" id="topbar-sub">No server selected</div>
+    </div>
+    <div class="tabs" id="main-tabs" style="display:none">
+      <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('files')" id="tab-files"><i class="fas fa-folder"></i> Files</button>
+      <button class="tab-btn" onclick="switchTab('terminal')" id="tab-terminal"><i class="fas fa-terminal"></i> Terminal</button>
+      <button class="tab-btn" onclick="switchTab('pm2')" id="tab-pm2"><i class="fas fa-layer-group"></i> PM2</button>
+      <button class="tab-btn" onclick="switchTab('nginx')" id="tab-nginx"><i class="fas fa-globe"></i> Nginx</button>
+      <button class="tab-btn" onclick="switchTab('deploy')" id="tab-deploy"><i class="fas fa-rocket"></i> Deploy</button>
+    </div>
+    <div id="topbar-status"></div>
+  </div>
+
+  <div id="content">
+    <!-- Welcome -->
+    <div id="welcome-screen">
+      <div class="welcome-icon"><i class="fas fa-server"></i></div>
+      <div class="welcome-title">No Server Selected</div>
+      <div class="welcome-sub">Add a server or click one in the sidebar to get started</div>
+      <button class="btn btn-primary" onclick="openAddServer()"><i class="fas fa-plus"></i> Add Your First Server</button>
+    </div>
+
+    <!-- Dashboard Panel -->
+    <div class="panel" id="panel-dashboard">
+      <div class="stats-grid" id="stats-grid">
+        <div class="loading-row"><div class="spinner"></div> Loading stats...</div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-microchip"></i> Quick Commands</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-secondary" onclick="quickCmd('pm2 list')"><i class="fas fa-list"></i> PM2 Status</button>
+            <button class="btn btn-secondary" onclick="quickCmd('nginx -t')"><i class="fas fa-check"></i> Test Nginx Config</button>
+            <button class="btn btn-secondary" onclick="quickCmd('systemctl status nginx')"><i class="fas fa-globe"></i> Nginx Status</button>
+            <button class="btn btn-secondary" onclick="quickCmd('df -h')"><i class="fas fa-hdd"></i> Disk Usage</button>
+            <button class="btn btn-secondary" onclick="quickCmd('netstat -tulpn 2>/dev/null || ss -tulpn')"><i class="fas fa-network-wired"></i> Open Ports</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-terminal"></i> Command Output</div>
+          <div id="quick-output" class="config-box" style="height:220px; overflow-y:auto; font-size:11px;">
+            Run a quick command to see output here...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files Panel -->
+    <div class="panel" id="panel-files">
+      <div class="breadcrumb" id="breadcrumb">/</div>
+      <div class="file-toolbar">
+        <input class="file-search" type="text" placeholder="Filter files..." id="file-filter" oninput="filterFiles(this.value)">
+        <button class="btn btn-secondary btn-sm" onclick="loadFiles(currentPath)"><i class="fas fa-sync"></i></button>
+        <button class="btn btn-primary btn-sm" onclick="newFileDialog()"><i class="fas fa-plus"></i> New File</button>
+      </div>
+      <div class="files-table" id="files-table">
+        <div class="loading-row"><div class="spinner"></div> Loading files...</div>
+      </div>
+    </div>
+
+    <!-- Terminal Panel -->
+    <div class="panel" id="panel-terminal" style="padding:0; gap:0;">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <div class="terminal-title">bash — NEXUS Terminal</div>
+        <div class="terminal-cwd" id="term-cwd">/root</div>
+        <button class="btn btn-secondary btn-sm" onclick="clearTerminal()"><i class="fas fa-trash"></i></button>
+      </div>
+      <div id="terminal-output"></div>
+      <div class="terminal-input-row">
+        <span class="term-prompt-label" id="term-prompt">root@server:~$</span>
+        <input type="text" id="terminal-input" placeholder="Type a command..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- PM2 Panel -->
+    <div class="panel" id="panel-pm2">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div style="flex:1; font-size:18px; font-weight:800;">PM2 Processes</div>
+        <button class="btn btn-secondary btn-sm" onclick="loadPm2()"><i class="fas fa-sync"></i> Refresh</button>
+        <button class="btn btn-primary btn-sm" onclick="openDeploy()"><i class="fas fa-plus"></i> New App</button>
+      </div>
+      <div class="pm2-grid" id="pm2-grid">
+        <div class="loading-row"><div class="spinner"></div> Loading processes...</div>
+      </div>
+      <div class="card" id="pm2-logs-card" style="display:none">
+        <div class="card-title"><i class="fas fa-file-alt"></i> Logs: <span id="logs-app-name"></span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="document.getElementById('pm2-logs-card').style.display='none'"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="pm2-log-output" class="config-box" style="height:300px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Nginx Panel -->
+    <div class="panel" id="panel-nginx">
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div class="card" style="flex:1; min-width:300px;">
+          <div class="card-title"><i class="fas fa-plus-circle"></i> Create Nginx Config</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Domain</label>
+              <input class="form-input" id="nginx-domain" placeholder="example.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">App Port</label>
+              <input class="form-input" id="nginx-port" placeholder="3000" type="number">
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button class="btn btn-primary" onclick="createNginx()"><i class="fas fa-check"></i> Create Config</button>
+            <button class="btn btn-secondary" onclick="previewNginx()"><i class="fas fa-eye"></i> Preview</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1; min-width:300px;">
+          <div class="card-title"><i class="fas fa-lock"></i> SSL with Certbot</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Domain</label>
+              <input class="form-input" id="certbot-domain" placeholder="example.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" id="certbot-email" placeholder="admin@example.com">
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-primary" onclick="runCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL Certificate</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-list"></i> Active Sites</div>
+        <div id="nginx-sites" class="loading-row"><div class="spinner"></div> Loading...</div>
+      </div>
+      <div id="nginx-config-preview" style="display:none">
+        <div class="card-title" style="padding: 0 0 8px"><i class="fas fa-code"></i> Config Preview</div>
+        <div id="nginx-config-content" class="config-box"></div>
+      </div>
+    </div>
+
+    <!-- Deploy Panel -->
+    <div class="panel" id="panel-deploy">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-rocket"></i> Deploy App with PM2</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">App Name</label>
+              <input class="form-input" id="deploy-name" placeholder="my-app">
+            </div>
+            <div class="form-group">
+              <label class="form-label">App Type</label>
+              <select class="form-select" id="deploy-type">
+                <option value="next">Next.js</option>
+                <option value="react">React (static)</option>
+                <option value="nest">NestJS</option>
+                <option value="node">Node.js</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Project Path</label>
+              <input class="form-input" id="deploy-path" placeholder="/var/www/my-app">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Port</label>
+              <input class="form-input" id="deploy-port" placeholder="3000" type="number">
+            </div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="deployApp()"><i class="fas fa-play"></i> Deploy</button>
+            <button class="btn btn-secondary" onclick="buildAndDeploy()"><i class="fas fa-hammer"></i> Build & Deploy</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-info-circle"></i> Setup Guides</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px;">
+              <div style="font-weight:700; font-size:13px; margin-bottom:6px; color:var(--accent)"><i class="fab fa-react"></i> Next.js</div>
+              <div style="font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8;">npm run build → pm2 start npm -- start</div>
+            </div>
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px;">
+              <div style="font-weight:700; font-size:13px; margin-bottom:6px; color:var(--info)"><i class="fas fa-cube"></i> NestJS</div>
+              <div style="font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8;">npm run build → pm2 start dist/main.js</div>
+            </div>
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px;">
+              <div style="font-weight:700; font-size:13px; margin-bottom:6px; color:var(--accent2)"><i class="fab fa-react"></i> React Static</div>
+              <div style="font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8;">npm run build → serve -s build</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="deploy-output-card" style="display:none">
+        <div class="card-title"><i class="fas fa-terminal"></i> Deploy Output</div>
+        <div id="deploy-output" class="config-box" style="height:200px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Server Modal -->
+<div class="modal-overlay" id="add-server-modal">
+  <div class="modal">
+    <div class="modal-title"><i class="fas fa-server"></i> Add Server</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="as-name" placeholder="Production Server">
+      </div>
+      <div class="form-group">
+        <label class="form-label">IP Address</label>
+        <input class="form-input" id="as-ip" placeholder="192.168.1.1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="as-user" placeholder="root" value="root">
+      </div>
+      <div class="form-group">
+        <label class="form-label">SSH Port</label>
+        <input class="form-input" id="as-port" placeholder="22" value="22" type="number">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="as-pass" type="password" placeholder="••••••••••••">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-server-modal')">Cancel</button>
+      <button class="btn btn-secondary" onclick="testNewConnection()"><i class="fas fa-plug"></i> Test</button>
+      <button class="btn btn-primary" onclick="addServer()"><i class="fas fa-plus"></i> Add Server</button>
+    </div>
+  </div>
+</div>
+
+<!-- File Editor Modal -->
+<div class="modal-overlay" id="editor-modal">
+  <div class="modal" style="width:860px; max-width:95vw;">
+    <div class="modal-title"><i class="fas fa-edit"></i> Edit File: <span id="editor-filename" style="font-family:var(--font-mono); font-size:14px; color:var(--muted)"></span></div>
+    <textarea id="file-editor" spellcheck="false"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editor-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFile()"><i class="fas fa-save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+let currentServer = null;
+let currentTab = null;
+let currentPath = '/';
+let currentFiles = [];
+let termCwd = '/root';
+let cmdHistory = [];
+let historyIdx = -1;
+let editingFilePath = null;
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadServerList();
+  document.getElementById('terminal-input').addEventListener('keydown', handleTermKey);
+});
+
+async function loadServerList() {
+  const res = await fetch('/api/servers');
+  const servers = await res.json();
+  renderSidebar(servers);
+}
+
+function renderSidebar(servers) {
+  const list = document.getElementById('server-list');
+  list.innerHTML = '<div class="server-section-label">Servers</div>';
+  if (servers.length === 0) {
+    list.innerHTML += `<div style="padding:16px; color:var(--muted); font-size:12px; text-align:center;">No servers yet</div>`;
+    return;
+  }
+  servers.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'server-item' + (currentServer?.id === s.id ? ' active' : '');
+    item.id = 'srv-' + s.id;
+    item.innerHTML = `
+      <div class="server-dot"></div>
+      <div class="server-info">
+        <div class="server-name">${s.name}</div>
+        <div class="server-ip">${s.ip}</div>
+      </div>
+      <span class="server-del" onclick="deleteServer(event,'${s.id}')"><i class="fas fa-times"></i></span>
+    `;
+    item.addEventListener('click', () => selectServer(s));
+    list.appendChild(item);
+  });
+}
+
+// ─── Server Selection ───────────────────────────────────────────────────────
+async function selectServer(server) {
+  currentServer = server;
+  document.querySelectorAll('.server-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('srv-' + server.id);
+  if (el) el.classList.add('active');
+
+  document.getElementById('topbar-title').textContent = server.name;
+  document.getElementById('topbar-sub').textContent = server.username + '@' + server.ip;
+  document.getElementById('main-tabs').style.display = 'flex';
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('term-cwd').textContent = termCwd;
+  document.getElementById('term-prompt').textContent = `${server.username}@${server.ip}:~$`;
+
+  switchTab('dashboard');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  currentTab = tab;
+
+  if (tab === 'dashboard') loadStats();
+  if (tab === 'files') loadFiles(currentPath);
+  if (tab === 'terminal') document.getElementById('terminal-input').focus();
+  if (tab === 'pm2') loadPm2();
+  if (tab === 'nginx') loadNginxSites();
+}
+
+// ─── Dashboard / Stats ──────────────────────────────────────────────────────
+async function loadStats() {
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = `<div class="loading-row"><div class="spinner"></div> Loading server stats...</div>`;
+  try {
+    const res = await fetch(`/api/servers/${currentServer.id}/stats`);
+    const s = await res.json();
+    if (s.error) { grid.innerHTML = `<div style="color:var(--danger); padding:20px">${s.error}</div>`; return; }
+
+    grid.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-label">CPU Usage</div>
+        <div class="stat-value" style="color:var(--accent)">${parseFloat(s.cpu||0).toFixed(1)}%</div>
+        <div class="stat-sub">Load: ${s.load || 'N/A'}</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${s.cpu||0}%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Memory</div>
+        <div class="stat-value" style="color:var(--accent2)">${s.mem_used||'?'}<span style="font-size:14px"> MB</span></div>
+        <div class="stat-sub">${s.mem_used||'?'} / ${s.mem_total||'?'} MB</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${s.mem_pct||0}%; background:linear-gradient(90deg,var(--accent2),var(--info))"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Disk Usage</div>
+        <div class="stat-value" style="color:var(--accent3)">${s.disk_used||'?'}</div>
+        <div class="stat-sub">${s.disk_used||'?'} / ${s.disk_total||'?'}</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${s.disk_pct||0}%; background:linear-gradient(90deg,var(--accent3),var(--danger))"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" style="color:var(--info); font-size:18px">${s.uptime||'N/A'}</div>
+        <div class="stat-sub">${s.os||'Linux'}</div>
+      </div>
+    `;
+    // mark server online
+    const el = document.getElementById('srv-' + currentServer.id);
+    if (el) el.classList.add('online');
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--danger); padding:20px">Failed to load stats: ${e.message}</div>`;
+  }
+}
+
+async function quickCmd(cmd) {
+  const out = document.getElementById('quick-output');
+  out.textContent = 'Running...';
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd, cwd: '/'})
+  });
+  const data = await res.json();
+  out.textContent = data.output || data.error || '(no output)';
+}
+
+// ─── File Manager ───────────────────────────────────────────────────────────
+async function loadFiles(path) {
+  currentPath = path;
+  renderBreadcrumb(path);
+  const table = document.getElementById('files-table');
+  table.innerHTML = `<div class="loading-row"><div class="spinner"></div> Loading...</div>`;
+  
+  const res = await fetch(`/api/servers/${currentServer.id}/files?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+  
+  if (data.error) {
+    table.innerHTML = `<div style="color:var(--danger); padding:20px"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>`;
+    return;
+  }
+  currentFiles = data.files;
+  renderFilesTable(data.files);
+}
+
+function renderFilesTable(files) {
+  const table = document.getElementById('files-table');
+  if (files.length === 0) {
+    table.innerHTML = `<div style="color:var(--muted); padding:20px; text-align:center">Directory is empty</div>`;
+    return;
+  }
+  table.innerHTML = `<table>
+    <thead><tr>
+      <th>Name</th><th>Permissions</th><th>Size</th><th>Modified</th><th>Actions</th>
+    </tr></thead>
+    <tbody id="files-tbody"></tbody>
+  </table>`;
+  const tbody = document.getElementById('files-tbody');
+  files.forEach(f => {
+    const tr = document.createElement('tr');
+    const icon = f.type === 'dir' ? 'fa-folder dir' : f.type === 'link' ? 'fa-link link' : 'fa-file-code file';
+    tr.innerHTML = `
+      <td><div class="file-name" onclick="handleFileClick(${JSON.stringify(f)})">
+        <i class="fas ${icon} file-icon ${f.type}"></i>
+        <span>${f.name}</span>
+      </div></td>
+      <td><span class="file-perms">${f.perms}</span></td>
+      <td><span class="file-size">${f.size}</span></td>
+      <td><span class="file-date">${f.date}</span></td>
+      <td><div class="file-actions">
+        ${f.type !== 'dir' ? `<button class="fa-btn" onclick="openFileEditor(${JSON.stringify(f.path)})"><i class="fas fa-edit"></i></button>` : ''}
+        <button class="fa-btn" onclick="copyPath(${JSON.stringify(f.path)})"><i class="fas fa-copy"></i></button>
+        <button class="fa-btn danger" onclick="deleteFile(${JSON.stringify(f.path)}, ${JSON.stringify(f.type)})"><i class="fas fa-trash"></i></button>
+      </div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function handleFileClick(f) {
+  if (f.type === 'dir') loadFiles(f.path);
+  else openFileEditor(f.path);
+}
+
+function filterFiles(q) {
+  if (!q) { renderFilesTable(currentFiles); return; }
+  const filtered = currentFiles.filter(f => f.name.toLowerCase().includes(q.toLowerCase()));
+  renderFilesTable(filtered);
+}
+
+function renderBreadcrumb(path) {
+  const bc = document.getElementById('breadcrumb');
+  const parts = path === '/' ? [''] : path.split('/').filter(Boolean);
+  let html = `<span class="breadcrumb-item" onclick="loadFiles('/')"><i class="fas fa-home"></i></span>`;
+  let built = '';
+  parts.forEach((p, i) => {
+    built += '/' + p;
+    const isLast = i === parts.length - 1;
+    html += `<span class="breadcrumb-sep">/</span><span class="breadcrumb-item ${isLast ? 'current' : ''}" onclick="loadFiles('${built}')">${p}</span>`;
+  });
+  bc.innerHTML = html;
+}
+
+async function openFileEditor(path) {
+  editingFilePath = path;
+  document.getElementById('editor-filename').textContent = path.split('/').pop();
+  document.getElementById('file-editor').value = 'Loading...';
+  openModal('editor-modal');
+  
+  const res = await fetch(`/api/servers/${currentServer.id}/file?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+  if (data.error) {
+    document.getElementById('file-editor').value = '// Error: ' + data.error;
+    return;
+  }
+  document.getElementById('file-editor').value = data.content;
+}
+
+async function saveFile() {
+  const content = document.getElementById('file-editor').value;
+  const res = await fetch(`/api/servers/${currentServer.id}/file`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({path: editingFilePath, content})
+  });
+  const data = await res.json();
+  if (data.success) { toast('File saved!', 'success'); closeModal('editor-modal'); }
+  else toast('Save failed: ' + data.error, 'error');
+}
+
+function copyPath(path) {
+  navigator.clipboard.writeText(path);
+  toast('Path copied!', 'info');
+}
+
+async function deleteFile(path, type) {
+  if (!confirm(`Delete ${type === 'dir' ? 'directory' : 'file'}: ${path}?`)) return;
+  const cmd = type === 'dir' ? `rm -rf "${path}"` : `rm "${path}"`;
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd, cwd: '/'})
+  });
+  const data = await res.json();
+  if (data.exit_code === 0) { toast('Deleted!', 'success'); loadFiles(currentPath); }
+  else toast('Delete failed: ' + data.error, 'error');
+}
+
+function newFileDialog() {
+  const name = prompt('File name (e.g. app.js):');
+  if (!name) return;
+  const path = currentPath.replace(/\/$/, '') + '/' + name;
+  editingFilePath = path;
+  document.getElementById('editor-filename').textContent = name;
+  document.getElementById('file-editor').value = '';
+  openModal('editor-modal');
+}
+
+// ─── Terminal ───────────────────────────────────────────────────────────────
+function handleTermKey(e) {
+  const input = document.getElementById('terminal-input');
+  if (e.key === 'Enter') {
+    const cmd = input.value.trim();
+    if (!cmd) return;
+    cmdHistory.unshift(cmd);
+    historyIdx = -1;
+    input.value = '';
+    runTermCommand(cmd);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (historyIdx < cmdHistory.length - 1) historyIdx++;
+    input.value = cmdHistory[historyIdx] || '';
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (historyIdx > 0) historyIdx--;
+    else { historyIdx = -1; input.value = ''; return; }
+    input.value = cmdHistory[historyIdx] || '';
+  } else if (e.key === 'l' && e.ctrlKey) {
+    e.preventDefault(); clearTerminal();
+  }
+}
+
+async function runTermCommand(cmd) {
+  const output = document.getElementById('terminal-output');
+  const prompt = `${currentServer.username}@${currentServer.ip}`;
+
+  // Append prompt + command
+  output.innerHTML += `<div class="term-line"><span class="term-prompt">${prompt}:${termCwd}$</span> <span class="term-cmd">${escHtml(cmd)}</span></div>`;
+
+  // Handle cd locally (sort of)
+  if (cmd.startsWith('cd ')) {
+    const newDir = cmd.slice(3).trim();
+    const resolvedCmd = `cd ${JSON.stringify(newDir.startsWith('/') ? newDir : termCwd + '/' + newDir)} && pwd`;
+    const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({command: resolvedCmd, cwd: termCwd})
+    });
+    const data = await res.json();
+    if (data.output) {
+      termCwd = data.output.trim();
+      document.getElementById('term-cwd').textContent = termCwd;
+      document.getElementById('term-prompt').textContent = `${currentServer.username}@${currentServer.ip}:${termCwd}$`;
+    }
+    output.scrollTop = output.scrollHeight;
+    return;
+  }
+
+  const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd, cwd: termCwd})
+  });
+  const data = await res.json();
+  if (data.output) output.innerHTML += `<div class="term-line term-out">${escHtml(data.output)}</div>`;
+  if (data.error && data.error !== data.output) output.innerHTML += `<div class="term-line term-err">${escHtml(data.error)}</div>`;
+  output.scrollTop = output.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal-output').innerHTML = `<div class="term-line term-sys">Terminal cleared.</div>`;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── PM2 ────────────────────────────────────────────────────────────────────
+async function loadPm2() {
+  const grid = document.getElementById('pm2-grid');
+  grid.innerHTML = `<div class="loading-row"><div class="spinner"></div> Loading PM2 processes...</div>`;
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2`);
+  const data = await res.json();
+  
+  if (data.error) { grid.innerHTML = `<div style="color:var(--danger); padding:20px">${data.error}</div>`; return; }
+  const procs = data.processes;
+  if (!procs.length) {
+    grid.innerHTML = `<div style="color:var(--muted); padding:20px; text-align:center">No PM2 processes running</div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  procs.forEach(p => {
+    const status = p.pm2_env?.status || 'stopped';
+    const card = document.createElement('div');
+    card.className = `pm2-card ${status}`;
+    const cpu = p.monit?.cpu ?? '?';
+    const mem = p.monit?.memory ? (p.monit.memory / 1024 / 1024).toFixed(1) + ' MB' : '?';
+    const restarts = p.pm2_env?.restart_time ?? 0;
+    const uptime = p.pm2_env?.pm_uptime ? new Date(p.pm2_env.pm_uptime).toLocaleString() : '—';
+    card.innerHTML = `
+      <div class="pm2-card-header">
+        <div class="pm2-name">${p.name}</div>
+        <span class="pm2-status ${status}">${status}</span>
+      </div>
+      <div class="pm2-meta">
+        <div class="pm2-meta-item"><div class="pm2-meta-label">CPU</div><div class="pm2-meta-value">${cpu}%</div></div>
+        <div class="pm2-meta-item"><div class="pm2-meta-label">Memory</div><div class="pm2-meta-value">${mem}</div></div>
+        <div class="pm2-meta-item"><div class="pm2-meta-label">Restarts</div><div class="pm2-meta-value">${restarts}</div></div>
+        <div class="pm2-meta-item"><div class="pm2-meta-label">PID</div><div class="pm2-meta-value">${p.pid || '—'}</div></div>
+      </div>
+      <div class="pm2-actions">
+        <button class="btn btn-secondary btn-sm" onclick="pm2Action('restart','${p.pm_id}')"><i class="fas fa-redo"></i> Restart</button>
+        <button class="btn btn-secondary btn-sm" onclick="pm2Action('stop','${p.pm_id}')"><i class="fas fa-stop"></i> Stop</button>
+        <button class="btn btn-secondary btn-sm" onclick="showPm2Logs('${p.pm_id}','${p.name}')"><i class="fas fa-file-alt"></i> Logs</button>
+        <button class="btn btn-danger btn-sm" onclick="pm2Action('delete','${p.pm_id}')"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function pm2Action(action, id) {
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2/${action}/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (data.success) { toast(`PM2 ${action} successful!`, 'success'); loadPm2(); }
+  else toast('Action failed: ' + data.error, 'error');
+}
+
+async function showPm2Logs(id, name) {
+  const card = document.getElementById('pm2-logs-card');
+  document.getElementById('logs-app-name').textContent = name;
+  card.style.display = '';
+  document.getElementById('pm2-log-output').textContent = 'Loading logs...';
+  const res = await fetch(`/api/servers/${currentServer.id}/logs/${id}?lines=100`);
+  const data = await res.json();
+  document.getElementById('pm2-log-output').textContent = data.logs || data.error;
+  card.scrollIntoView({behavior:'smooth'});
+}
+
+// ─── Nginx ──────────────────────────────────────────────────────────────────
+async function loadNginxSites() {
+  const div = document.getElementById('nginx-sites');
+  div.innerHTML = `<div class="loading-row"><div class="spinner"></div> Loading...</div>`;
+  const res = await fetch(`/api/servers/${currentServer.id}/nginx`);
+  const data = await res.json();
+  if (data.error) { div.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
+  if (!data.sites.length) { div.innerHTML = `<div style="color:var(--muted); padding:12px">No sites configured</div>`; return; }
+  div.innerHTML = data.sites.map(s => `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+    <i class="fas fa-globe" style="color:var(--accent)"></i>
+    <span style="font-family:var(--font-mono); font-size:12px; flex:1">${s}</span>
+  </div>`).join('');
+}
+
+async function createNginx() {
+  const domain = document.getElementById('nginx-domain').value;
+  const port = document.getElementById('nginx-port').value || 3000;
+  if (!domain) { toast('Domain required', 'error'); return; }
+  const res = await fetch(`/api/servers/${currentServer.id}/nginx/create`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain, port})
+  });
+  const data = await res.json();
+  if (data.success) { toast('Nginx config created!', 'success'); loadNginxSites(); }
+  else toast('Failed: ' + data.error, 'error');
+}
+
+function previewNginx() {
+  const domain = document.getElementById('nginx-domain').value || 'example.com';
+  const port = document.getElementById('nginx-port').value || 3000;
+  const config = `server {
+    listen 80;
+    server_name ${domain} www.${domain};
+
+    location / {
+        proxy_pass http://localhost:${port};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}`;
+  document.getElementById('nginx-config-content').textContent = config;
+  document.getElementById('nginx-config-preview').style.display = '';
+}
+
+async function runCertbot() {
+  const domain = document.getElementById('certbot-domain').value;
+  const email = document.getElementById('certbot-email').value;
+  if (!domain || !email) { toast('Domain and email required', 'error'); return; }
+  toast('Issuing SSL certificate... (this may take a minute)', 'info');
+  const res = await fetch(`/api/servers/${currentServer.id}/certbot`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain, email})
+  });
+  const data = await res.json();
+  if (data.success) toast('SSL certificate issued!', 'success');
+  else toast('Certbot failed. Check server logs.', 'error');
+}
+
+// ─── Deploy ─────────────────────────────────────────────────────────────────
+async function deployApp() {
+  const name = document.getElementById('deploy-name').value;
+  const type = document.getElementById('deploy-type').value;
+  const path = document.getElementById('deploy-path').value;
+  const port = document.getElementById('deploy-port').value || 3000;
+  if (!name || !path) { toast('Name and path required', 'error'); return; }
+  
+  const res = await fetch(`/api/servers/${currentServer.id}/pm2/deploy`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, type, path, port})
+  });
+  const data = await res.json();
+  const card = document.getElementById('deploy-output-card');
+  document.getElementById('deploy-output').textContent = data.output + '\n' + data.error;
+  card.style.display = '';
+  if (data.success) toast('App deployed!', 'success');
+  else toast('Deploy failed', 'error');
+}
+
+async function buildAndDeploy() {
+  const name = document.getElementById('deploy-name').value;
+  const type = document.getElementById('deploy-type').value;
+  const path = document.getElementById('deploy-path').value;
+  if (!name || !path) { toast('Name and path required', 'error'); return; }
+
+  toast('Building app...', 'info');
+  const buildRes = await fetch(`/api/servers/${currentServer.id}/terminal`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({command: 'npm install && npm run build 2>&1', cwd: path})
+  });
+  const buildData = await buildRes.json();
+  const card = document.getElementById('deploy-output-card');
+  document.getElementById('deploy-output').textContent = 'BUILD:\n' + buildData.output;
+  card.style.display = '';
+
+  if (buildData.exit_code === 0) {
+    toast('Build successful, deploying...', 'success');
+    await deployApp();
+  } else {
+    toast('Build failed!', 'error');
+  }
+}
+
+// ─── Server Management ──────────────────────────────────────────────────────
+async function addServer() {
+  const name = document.getElementById('as-name').value;
+  const ip = document.getElementById('as-ip').value;
+  const username = document.getElementById('as-user').value || 'root';
+  const port = document.getElementById('as-port').value || 22;
+  const password = document.getElementById('as-pass').value;
+  if (!name || !ip || !password) { toast('All fields required', 'error'); return; }
+  
+  const res = await fetch('/api/servers', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, ip, port, username, password})
+  });
+  const data = await res.json();
+  toast('Server added!', 'success');
+  closeModal('add-server-modal');
+  loadServerList();
+}
+
+async function testNewConnection() {
+  const ip = document.getElementById('as-ip').value;
+  const username = document.getElementById('as-user').value || 'root';
+  const port = document.getElementById('as-port').value || 22;
+  const password = document.getElementById('as-pass').value;
+  if (!ip || !password) { toast('Fill IP and password first', 'error'); return; }
+  
+  toast('Testing connection...', 'info');
+  // Save temporarily and test
+  const tempRes = await fetch('/api/servers', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: '__test__', ip, port, username, password})
+  });
+  const tempServer = await tempRes.json();
+  
+  const testRes = await fetch(`/api/servers/${tempServer.id}/test`, {method:'POST'});
+  const testData = await testRes.json();
+  
+  // Delete temp
+  await fetch(`/api/servers/${tempServer.id}`, {method:'DELETE'});
+  
+  if (testData.success) toast('Connection successful!', 'success');
+  else toast('Connection failed: ' + testData.error, 'error');
+}
+
+async function deleteServer(e, id) {
+  e.stopPropagation();
+  if (!confirm('Remove this server?')) return;
+  await fetch(`/api/servers/${id}`, {method:'DELETE'});
+  if (currentServer?.id === id) {
+    currentServer = null;
+    document.getElementById('main-tabs').style.display = 'none';
+    document.getElementById('welcome-screen').style.display = 'flex';
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  }
+  loadServerList();
+  toast('Server removed', 'info');
+}
+
+// ─── Modal ──────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openAddServer() { openModal('add-server-modal'); }
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); });
+});
+
+// ─── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const icons = {success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle'};
+  const colors = {success: 'var(--success)', error: 'var(--danger)', info: 'var(--info)'};
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fas ${icons[type]||'fa-info-circle'}" style="color:${colors[type]}"></i> ${msg}`;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+</script>
+</body>
+</html>
