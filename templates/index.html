@@ -671,6 +671,41 @@ body {
   white-space: pre-wrap;
   flex: 1;
 }
+.wizard-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) minmax(260px, 1fr);
+  gap: 16px;
+}
+.wizard-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wizard-log-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wizard-log-box {
+  background: #070710;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: #a8a8b8;
+  overflow: auto;
+  white-space: pre-wrap;
+  min-height: 140px;
+  max-height: 240px;
+}
+@media (max-width: 1000px) {
+  .wizard-grid { grid-template-columns: 1fr; }
+}
 
 /* ── Card ── */
 .card {
@@ -1061,107 +1096,126 @@ body {
 
     <!-- Deploy Wizard Panel -->
     <div class="panel" id="panel-wizard">
-      <div class="card">
-        <div class="card-title"><i class="fas fa-folder-open"></i> Project Detection</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label class="form-label">Project Path</label>
-            <input class="form-input" id="wizard-path" placeholder="/var/www/my-app">
+      <div class="wizard-grid">
+        <div class="wizard-left">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-folder-open"></i> Project Detection</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Project Path</label>
+                <input class="form-input" id="wizard-path" placeholder="/var/www/my-app">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Type</label>
+                <select class="form-select" id="wizard-type-select">
+                  <option value="next">Next.js</option>
+                  <option value="react">React</option>
+                  <option value="nest">NestJS</option>
+                  <option value="node">Node.js</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Port</label>
+                <input class="form-input" id="wizard-port" placeholder="3000" type="number">
+              </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-secondary wizard-action" onclick="setWizardPathFromCurrent()"><i class="fas fa-crosshairs"></i> Use Current Folder</button>
+              <button class="btn btn-primary wizard-action" onclick="detectProject()"><i class="fas fa-search"></i> Detect</button>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <span class="badge" id="wizard-type-badge">TYPE: —</span>
+              <span class="badge" id="wizard-git-badge">GIT: —</span>
+              <span class="badge" id="wizard-branch-badge">BRANCH: —</span>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Type</label>
-            <select class="form-select" id="wizard-type-select">
-              <option value="next">Next.js</option>
-              <option value="react">React</option>
-              <option value="nest">NestJS</option>
-              <option value="node">Node.js</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Port</label>
-            <input class="form-input" id="wizard-port" placeholder="3000" type="number">
-          </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary wizard-action" onclick="setWizardPathFromCurrent()"><i class="fas fa-crosshairs"></i> Use Current Folder</button>
-          <button class="btn btn-primary wizard-action" onclick="detectProject()"><i class="fas fa-search"></i> Detect</button>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" id="wizard-type-badge">TYPE: —</span>
-          <span class="badge" id="wizard-git-badge">GIT: —</span>
-          <span class="badge" id="wizard-branch-badge">BRANCH: —</span>
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title"><i class="fas fa-code-branch"></i> Git Branch</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label class="form-label">Branch</label>
-            <select class="form-select" id="wizard-branch-select"></select>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-code-branch"></i> Git Branch</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">Branch</label>
+                <select class="form-select" id="wizard-branch-select"></select>
+              </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-secondary wizard-action" onclick="switchWizardBranch()"><i class="fas fa-random"></i> Switch Branch</button>
+              <button class="btn btn-secondary wizard-action" onclick="pullWizardBranch()"><i class="fas fa-code-branch"></i> Git Pull</button>
+            </div>
           </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary wizard-action" onclick="switchWizardBranch()"><i class="fas fa-random"></i> Switch Branch</button>
-          <button class="btn btn-secondary wizard-action" onclick="pullWizardBranch()"><i class="fas fa-code-branch"></i> Git Pull</button>
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title"><i class="fas fa-hammer"></i> Build</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-primary wizard-action" onclick="buildWizardProject()"><i class="fas fa-play"></i> Build Project</button>
-          <button class="btn btn-secondary wizard-action" onclick="installWizardDeps()"><i class="fas fa-box"></i> Install Deps</button>
-        </div>
-      </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-hammer"></i> Build</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-primary wizard-action" onclick="buildWizardProject()"><i class="fas fa-play"></i> Build Project</button>
+              <button class="btn btn-secondary wizard-action" onclick="installWizardDeps()"><i class="fas fa-box"></i> Install Deps</button>
+            </div>
+          </div>
 
-      <div class="card">
-        <div class="card-title"><i class="fas fa-layer-group"></i> PM2</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">App Name</label>
-            <input class="form-input" id="wizard-app-name" placeholder="my-app">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-layer-group"></i> PM2</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">App Name</label>
+                <input class="form-input" id="wizard-app-name" placeholder="my-app">
+              </div>
+              <div class="form-group">
+                <label class="form-label">PM2 Process</label>
+                <select class="form-select" id="wizard-pm2-select"></select>
+              </div>
+              <div class="form-group full">
+                <label class="form-label">PM2 ID (manual)</label>
+                <input class="form-input" id="wizard-pm2-manual" placeholder="0">
+              </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-secondary wizard-action" onclick="loadWizardPm2()"><i class="fas fa-sync"></i> Refresh PM2</button>
+              <button class="btn btn-secondary wizard-action" onclick="restartWizardPm2()"><i class="fas fa-redo"></i> Restart Selected</button>
+              <button class="btn btn-primary wizard-action" onclick="deployWizardPm2()"><i class="fas fa-rocket"></i> Deploy with PM2</button>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">PM2 Process</label>
-            <select class="form-select" id="wizard-pm2-select"></select>
-          </div>
-          <div class="form-group full">
-            <label class="form-label">PM2 ID (manual)</label>
-            <input class="form-input" id="wizard-pm2-manual" placeholder="0">
-          </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary wizard-action" onclick="loadWizardPm2()"><i class="fas fa-sync"></i> Refresh PM2</button>
-          <button class="btn btn-secondary wizard-action" onclick="restartWizardPm2()"><i class="fas fa-redo"></i> Restart Selected</button>
-          <button class="btn btn-primary wizard-action" onclick="deployWizardPm2()"><i class="fas fa-rocket"></i> Deploy with PM2</button>
-        </div>
-      </div>
 
-      <div class="card">
-        <div class="card-title"><i class="fas fa-globe"></i> Nginx + SSL</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Domain</label>
-            <input class="form-input" id="wizard-domain" placeholder="example.com">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-globe"></i> Nginx + SSL</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Domain</label>
+                <input class="form-input" id="wizard-domain" placeholder="example.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input class="form-input" id="wizard-email" placeholder="admin@example.com">
+              </div>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-secondary wizard-action" onclick="createWizardNginx()"><i class="fas fa-check"></i> Create Nginx</button>
+              <button class="btn btn-primary wizard-action" onclick="runWizardCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL</button>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input class="form-input" id="wizard-email" placeholder="admin@example.com">
-          </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary wizard-action" onclick="createWizardNginx()"><i class="fas fa-check"></i> Create Nginx</button>
-          <button class="btn btn-primary wizard-action" onclick="runWizardCertbot()"><i class="fas fa-shield-alt"></i> Issue SSL</button>
-        </div>
-      </div>
 
-      <div id="wizard-status" class="wizard-status">
-        <div class="spinner"></div>
-        <div id="wizard-status-text">Working...</div>
+          <div id="wizard-status" class="wizard-status">
+            <div class="spinner"></div>
+            <div id="wizard-status-text">Working...</div>
+          </div>
+          <div id="wizard-output" class="config-box" style="display:none"></div>
+        </div>
+
+        <div class="wizard-right">
+          <div class="card">
+            <div class="wizard-log-title"><i class="fas fa-terminal"></i> Terminal Log</div>
+            <div id="wizard-log-terminal" class="wizard-log-box">—</div>
+          </div>
+          <div class="card">
+            <div class="wizard-log-title"><i class="fas fa-hammer"></i> Build Log</div>
+            <div id="wizard-log-build" class="wizard-log-box">—</div>
+          </div>
+          <div class="card">
+            <div class="wizard-log-title"><i class="fas fa-code-branch"></i> Git Log</div>
+            <div id="wizard-log-git" class="wizard-log-box">—</div>
+          </div>
+        </div>
       </div>
-      <div id="wizard-output" class="config-box" style="display:none"></div>
     </div>
 
     <div id="wizard-overlay" class="wizard-overlay">
@@ -1603,6 +1657,19 @@ function showWizardOutput(text) {
   box.scrollTop = box.scrollHeight;
 }
 
+function showWizardLog(type, text) {
+  const map = {
+    terminal: 'wizard-log-terminal',
+    build: 'wizard-log-build',
+    git: 'wizard-log-git'
+  };
+  const id = map[type];
+  if (!id) return;
+  const el = document.getElementById(id);
+  el.textContent = text || '—';
+  el.scrollTop = el.scrollHeight;
+}
+
 function openWizardOverlay(title, text) {
   const overlay = document.getElementById('wizard-overlay');
   const titleEl = document.getElementById('wizard-overlay-title');
@@ -1650,6 +1717,7 @@ async function detectProject() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Detecting project...');
   showWizardOutput('Detecting project...');
+  showWizardLog('terminal', `Detecting project at ${path}...`);
   openWizardOverlay('Detecting project', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/project/detect`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1659,6 +1727,7 @@ async function detectProject() {
   if (data.error) {
     setWizardLoading(false);
     showWizardOutput(data.error);
+    showWizardLog('terminal', data.error);
     updateWizardOverlay(data.error);
     setWizardLoading(true, 'Detect failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1690,8 +1759,10 @@ async function detectProject() {
     branchSelect.appendChild(opt);
   }
   showWizardOutput('Detect complete.');
+  showWizardLog('terminal', 'Detect complete.');
   updateWizardOverlay('Detect complete.');
   setWizardLoading(false);
+  setTimeout(closeWizardOverlay, 600);
 }
 
 async function switchWizardBranch() {
@@ -1701,6 +1772,7 @@ async function switchWizardBranch() {
   if (!branch) { toast('Select a branch', 'error'); return; }
   setWizardLoading(true, `Switching to ${branch}...`);
   showWizardOutput(`Switching to ${branch}...`);
+  showWizardLog('git', `Switching to ${branch}...`);
   openWizardOverlay('Switching branch', `Branch: ${branch}\nPath: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1709,10 +1781,12 @@ async function switchWizardBranch() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('git', output);
   updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Branch switched', 'success');
     detectProject();
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Branch switch failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1726,6 +1800,7 @@ async function pullWizardBranch() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Running git pull...');
   showWizardOutput('Running git pull...');
+  showWizardLog('git', 'Running git pull...');
   openWizardOverlay('Git pull', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1734,9 +1809,11 @@ async function pullWizardBranch() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('git', output);
   updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Git pull completed', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Git pull failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1750,6 +1827,7 @@ async function installWizardDeps() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Installing dependencies...');
   showWizardOutput('Installing dependencies...');
+  showWizardLog('build', 'Installing dependencies...');
   openWizardOverlay('Installing dependencies', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1758,9 +1836,11 @@ async function installWizardDeps() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('build', output);
   updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Dependencies installed', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Install failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1774,6 +1854,7 @@ async function buildWizardProject() {
   if (!path) { toast('Project path required', 'error'); return; }
   setWizardLoading(true, 'Building project...');
   showWizardOutput('Building project...');
+  showWizardLog('build', 'Building project...');
   openWizardOverlay('Building project', `Path: ${path}`);
   const res = await fetch(`/api/servers/${currentServer.id}/terminal`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -1782,9 +1863,11 @@ async function buildWizardProject() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('build', output);
   updateWizardOverlay(output);
   if (data.exit_code === 0) {
     toast('Build completed', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Build failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1799,6 +1882,7 @@ async function loadWizardPm2() {
   select.innerHTML = '';
   setWizardLoading(true, 'Loading PM2 list...');
   openWizardOverlay('Loading PM2 list', 'Fetching process list...');
+  showWizardLog('terminal', 'Loading PM2 list...');
   const res = await fetch(`/api/servers/${currentServer.id}/pm2`);
   const data = await res.json();
   if (data.error || !data.processes) {
@@ -1807,6 +1891,7 @@ async function loadWizardPm2() {
     opt.textContent = 'PM2 not available';
     select.appendChild(opt);
     updateWizardOverlay('PM2 not available.');
+    showWizardLog('terminal', 'PM2 not available.');
     setWizardLoading(false);
     return;
   }
@@ -1816,6 +1901,7 @@ async function loadWizardPm2() {
     opt.textContent = 'No PM2 processes';
     select.appendChild(opt);
     updateWizardOverlay('No PM2 processes found.');
+    showWizardLog('terminal', 'No PM2 processes found.');
     setWizardLoading(false);
     return;
   }
@@ -1826,7 +1912,9 @@ async function loadWizardPm2() {
     select.appendChild(opt);
   });
   updateWizardOverlay('PM2 list loaded.');
+  showWizardLog('terminal', 'PM2 list loaded.');
   setWizardLoading(false);
+  setTimeout(closeWizardOverlay, 600);
 }
 
 async function restartWizardPm2() {
@@ -1836,11 +1924,15 @@ async function restartWizardPm2() {
   if (!id) { toast('Select or enter PM2 id', 'error'); return; }
   setWizardLoading(true, 'Restarting PM2...');
   openWizardOverlay('Restarting PM2', `ID: ${id}`);
+  showWizardLog('terminal', `Restarting PM2: ${id}`);
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/restart/${id}`, {method:'POST'});
   const data = await res.json();
-  updateWizardOverlay((data.output || data.error || '(no output)').trim());
+  const output = (data.output || data.error || '(no output)').trim();
+  updateWizardOverlay(output);
+  showWizardLog('terminal', output);
   if (data.success) {
     toast('PM2 restarted', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'PM2 restart failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1857,6 +1949,7 @@ async function deployWizardPm2() {
   if (!name || !path) { toast('App name and path required', 'error'); return; }
   setWizardLoading(true, 'Deploying with PM2...');
   showWizardOutput('Deploying with PM2...');
+  showWizardLog('terminal', 'Deploying with PM2...');
   openWizardOverlay('Deploying with PM2', `App: ${name}\nPath: ${path}\nType: ${type}\nPort: ${port}`);
   const res = await fetch(`/api/servers/${currentServer.id}/pm2/deploy`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1865,9 +1958,11 @@ async function deployWizardPm2() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('terminal', output);
   updateWizardOverlay(output);
   if (data.success) {
     toast('PM2 deploy completed', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'PM2 deploy failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1883,6 +1978,7 @@ async function createWizardNginx() {
   if (!domain) { toast('Domain required', 'error'); return; }
   setWizardLoading(true, 'Creating Nginx config...');
   showWizardOutput('Creating Nginx config...');
+  showWizardLog('terminal', 'Creating Nginx config...');
   openWizardOverlay('Creating Nginx config', `Domain: ${domain}\nPort: ${port}`);
   const res = await fetch(`/api/servers/${currentServer.id}/nginx/create`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1891,10 +1987,12 @@ async function createWizardNginx() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('terminal', output);
   updateWizardOverlay(output);
   if (data.success) {
     toast('Nginx config created', 'success');
     loadNginxSites();
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Nginx create failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
@@ -1909,6 +2007,7 @@ async function runWizardCertbot() {
   if (!domain || !email) { toast('Domain and email required', 'error'); return; }
   setWizardLoading(true, 'Running Certbot...');
   showWizardOutput('Running Certbot...');
+  showWizardLog('terminal', 'Running Certbot...');
   openWizardOverlay('Running Certbot', `Domain: ${domain}\nEmail: ${email}`);
   const res = await fetch(`/api/servers/${currentServer.id}/certbot`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1917,9 +2016,11 @@ async function runWizardCertbot() {
   const data = await res.json();
   const output = (data.output || data.error || '(no output)').trim();
   showWizardOutput(output);
+  showWizardLog('terminal', output);
   updateWizardOverlay(output);
   if (data.success) {
     toast('SSL issued', 'success');
+    setTimeout(closeWizardOverlay, 600);
   } else {
     setWizardLoading(true, 'Certbot failed', true);
     setTimeout(() => setWizardLoading(false), 1200);
