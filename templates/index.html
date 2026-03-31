@@ -335,30 +335,59 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
   flex: 1;
+  padding: 12px;
 }
-.files-table table {
-  width: 100%;
-  border-collapse: collapse;
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
-.files-table th {
-  padding: 10px 14px;
-  text-align: left;
+.file-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.file-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+.file-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.file-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 2px;
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  text-transform: uppercase;
 }
-.files-table td {
-  padding: 8px 14px;
-  font-size: 13px;
-  border-bottom: 1px solid rgba(30,30,46,0.5);
-  transition: background 0.1s;
+.file-card-meta span {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
 }
-.files-table tr:hover td { background: rgba(255,255,255,0.02); }
-.files-table tr:last-child td { border-bottom: none; }
+.file-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .file-name {
   display: flex;
   align-items: center;
@@ -727,33 +756,7 @@ body {
 }
 
 @media (max-width: 900px) {
-  .files-table table, .files-table thead, .files-table tbody, .files-table th, .files-table tr, .files-table td {
-    display: block;
-    width: 100%;
-  }
-  .files-table thead { display: none; }
-  .files-table tr {
-    border-bottom: 1px solid var(--border);
-    padding: 10px 0;
-  }
-  .files-table td {
-    border-bottom: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 14px;
-  }
-  .files-table td::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-  .file-name { justify-content: flex-start; }
-  .file-actions { justify-content: flex-end; flex-wrap: wrap; }
+  .file-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
 </style>
 </head>
@@ -1189,36 +1192,38 @@ function renderFilesTable(files) {
     table.innerHTML = `<div style="color:var(--muted); padding:20px; text-align:center">Directory is empty</div>`;
     return;
   }
-  table.innerHTML = `<table>
-    <thead><tr>
-      <th>Name</th><th>Permissions</th><th>Size</th><th>Modified</th><th>Actions</th>
-    </tr></thead>
-    <tbody id="files-tbody"></tbody>
-  </table>`;
-  const tbody = document.getElementById('files-tbody');
+  table.innerHTML = `<div class="file-grid" id="files-grid"></div>`;
+  const grid = document.getElementById('files-grid');
   files.forEach(f => {
-    const tr = document.createElement('tr');
+    const card = document.createElement('div');
+    card.className = 'file-card';
     const icon = f.type === 'dir' ? 'fa-folder dir' : f.type === 'link' ? 'fa-link link' : 'fa-file-code file';
-    tr.innerHTML = `
-      <td data-label="Name"><div class="file-name">
+    const safeName = escHtml(f.name);
+    const safePerms = escHtml(f.perms);
+    const safeSize = escHtml(String(f.size));
+    const safeDate = escHtml(f.date);
+    card.innerHTML = `
+      <div class="file-card-header">
         <i class="fas ${icon} file-icon ${f.type}"></i>
-        <span>${f.name}</span>
-      </div></td>
-      <td data-label="Permissions"><span class="file-perms">${f.perms}</span></td>
-      <td data-label="Size"><span class="file-size">${f.size}</span></td>
-      <td data-label="Modified"><span class="file-date">${f.date}</span></td>
-      <td data-label="Actions"><div class="file-actions">
+        <div class="file-card-name" title="${safeName}">${safeName}</div>
+      </div>
+      <div class="file-card-meta">
+        <div>Perms</div><span>${safePerms}</span>
+        <div>Size</div><span>${safeSize}</span>
+        <div>Modified</div><span>${safeDate}</span>
+      </div>
+      <div class="file-card-actions">
         ${f.type !== 'dir' ? `<button class="fa-btn" onclick="openFileEditor(${JSON.stringify(f.path)})"><i class="fas fa-edit"></i></button>` : ''}
         <button class="fa-btn" onclick="copyPath(${JSON.stringify(f.path)})"><i class="fas fa-copy"></i></button>
         <button class="fa-btn danger" onclick="deleteFile(${JSON.stringify(f.path)}, ${JSON.stringify(f.type)})"><i class="fas fa-trash"></i></button>
-      </div></td>
+      </div>
     `;
-    tr.addEventListener('click', (e) => {
-      if (e.target.closest('.file-actions')) return;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.file-card-actions')) return;
       if (f.type === 'dir') loadFiles(f.path);
       else openFileEditor(f.path);
     });
-    tbody.appendChild(tr);
+    grid.appendChild(card);
   });
 }
 
@@ -1241,7 +1246,7 @@ function renderBreadcrumb(path) {
   parts.forEach((p, i) => {
     built += '/' + p;
     const isLast = i === parts.length - 1;
-    html += `<span class="breadcrumb-sep">/</span><span class="breadcrumb-item ${isLast ? 'current' : ''}" onclick="loadFiles('${built}')">${p}</span>`;
+    html += `<span class="breadcrumb-sep">/</span><span class="breadcrumb-item ${isLast ? 'current' : ''}" onclick="loadFiles(${JSON.stringify(built)})">${escHtml(p)}</span>`;
   });
   bc.innerHTML = html;
 }
