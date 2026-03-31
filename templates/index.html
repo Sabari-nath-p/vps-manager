@@ -1194,6 +1194,25 @@ function renderFilesTable(files) {
   }
   table.innerHTML = `<div class="file-grid" id="files-grid"></div>`;
   const grid = document.getElementById('files-grid');
+  if (currentPath && currentPath !== '/') {
+    const backCard = document.createElement('div');
+    backCard.className = 'file-card';
+    backCard.innerHTML = `
+      <div class="file-card-header">
+        <i class="fas fa-arrow-left file-icon dir"></i>
+        <div class="file-card-name">..</div>
+      </div>
+      <div class="file-card-meta">
+        <div>Type</div><span>Parent folder</span>
+        <div>Path</div><span>${escHtml(currentPath)}</span>
+      </div>
+    `;
+    backCard.addEventListener('click', () => {
+      const parent = currentPath.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '/';
+      loadFiles(parent);
+    });
+    grid.appendChild(backCard);
+  }
   files.forEach(f => {
     const card = document.createElement('div');
     card.className = 'file-card';
